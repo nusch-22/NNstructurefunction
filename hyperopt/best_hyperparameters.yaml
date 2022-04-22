@@ -1,0 +1,6 @@
+activation: relu
+epochs: 2000
+initializer: glorot_uniform
+optimizer: nadam
+units_1: 24.0
+units_2: 8.0

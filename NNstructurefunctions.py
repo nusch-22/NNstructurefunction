@@ -1,9 +1,12 @@
 import os
 import yaml
+import pickle
 import numpy as np
 import matplotlib.pyplot as plt
 import tensorflow as tf
 
+from pathlib import Path
+from filetrials import FileTrials, space_eval
 from tensorflow.keras import Sequential
 from tensorflow.keras.layers import Dense
 from tensorflow.keras.callbacks import Callback, EarlyStopping
@@ -14,6 +17,8 @@ from hyperopt import hp, fmin, tpe
 # Fix the seeds for reproducible results
 tf.random.set_seed(1234)
 np.random.seed(5678)
+
+current_path = Path().absolute()
 
 
 def split_trval(x_data, y_data, perc=0.3):
@@ -37,14 +42,14 @@ def split_trval(x_data, y_data, perc=0.3):
 def load_data(
     Q2_cut=None,
 ):  # Q2 cut does not work yet bc of empty x_val in concetanation
-    filenames = os.listdir("./data")
+    filenames = os.listdir(f"{current_path}/data")
     # filenames = ["DATA_CHORUS_0.02.yaml"]
 
     x_all_data = []
     y_all_data = []
 
     for i, filename in enumerate(filenames):
-        with open("./data/" + filename, "r") as file:
+        with open(f"{current_path}/data/" + filename, "r") as file:
             input_data = yaml.safe_load(file)
 
         x = input_data["x"]
@@ -155,7 +160,7 @@ def define_hyperspace():
     optimizer = hp.choice("optimizer", optimizer_choices)
     epochs = hp.choice("epochs", epochs_choices)
     initializer = hp.choice("initializer", initializer_choices)
-    # learning_rate =
+    learning_rate = hp.loguniform("learning_rate", 1e-6, 1e-1)
 
     return {
         "units_1": nb_units_layer_1,
@@ -164,58 +169,56 @@ def define_hyperspace():
         "optimizer": optimizer,
         "epochs": epochs,
         "initializer": initializer,
+        "learning_rate": learning_rate,
     }
 
 
-def hyperopt(N_trials=100):
-    # Define hyperparameter space
+# Define the hyperoptimization function
+def hyper_function(hyperspace_dict):
+    _, val_loss, _ = model_trainer(**hyperspace_dict)
+    return {"loss": val_loss, "status": "ok"}
+
+
+def perform_hyperopt(nb_trials=2):
     hyperspace = define_hyperspace()
-
-    # Define the hyperoptimization function
-    def hyper_function(hyperspace_dict):
-        _, val_loss, _ = model_trainer(**hyperspace_dict)
-        return {"loss": val_loss, "status": "ok"}
-
-    # Serch for the best combination of parameters
+    trials = FileTrials(f"{current_path}/hyperopt/", parameters=hyperspace)
     best = fmin(
         fn=hyper_function,
         space=hyperspace,
         verbose=1,
-        max_evals=N_trials,
+        max_evals=nb_trials,
         algo=tpe.suggest,
+        trials=trials,
     )
-
-    # Extract the values of the best hyperparameters
-    best_params = {
-        "units_1": best.get("units_1"),
-        "activation": activation_choices[best.get("activation")],
-        "optimizer": optimizer_choices[best.get("optimizer")],
-        "epochs": epochs_choices[best.get("epochs")],
-    }
-
-    # Generate the model with the best hyperparameters
-    best_model, _, data_dict = model_trainer(**best_params)
-
-    return best_model, data_dict
+    # Save the best hyperparameters combination in order to return it later
+    best_setup = space_eval(hyperspace, best)
+    # Write the output of the best into a file
+    with open(f"{current_path}/hyperopt/best_hyperparameters.yaml", "w") as file:
+        yaml.dump(best_setup, file, default_flow_style=False)
+    # Write the all the history of the hyperopt into a file
+    with open(f"{current_path}/hyperopt/hyperopt_history.pickle", "wb") as histfile:
+        pickle.dump(trials.trials, histfile)
+    return best_setup
 
 
 def plot_constant_x():
 
-    model, data_dict = hyperopt(N_trials=12)
+    best_params = perform_hyperopt()
+    best_model, _, data_dict = model_trainer(**best_params)
 
     for i, x in enumerate(data_dict["x_data"]):
         y = data_dict["y_data"][i]
         x_grid = np.linspace(x[0], x[-1], 100)
-        y_pred = model(x_grid)
+        y_pred = best_model(x_grid)
 
-        new_fig = plt.figure()
+        plt.figure()
         plt.plot(x_grid[:, 1], y_pred, color="red", label="Prediction")
         plt.scatter(x[:, 1], y, color="blue", label="Data")
         plt.legend()
         plt.xlabel("$Q^2$ [GeV$^2$]")
         plt.ylabel("$F_2$")
         plt.title(f"Prediction of $F_2$ at $x={x[0,0]}$")
-        plt.savefig(f"./fits/FIT_{x[0,0]}.png")
+        plt.savefig(f"{current_path}/fits/FIT_{x[0,0]}.png")
 
 
 plot_constant_x()
