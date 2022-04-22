@@ -1,7 +1,7 @@
-activation: relu
-epochs: 1000
-initializer: random_normal
-learning_rate: 1.0451802250942976
+activation: tanh
+epochs: 5000
+initializer: glorot_uniform
+learning_rate: 1.0105836706572595
 optimizer: adam
-units_1: 4.0
-units_2: 20.0
+units_1: 24.0
+units_2: 12.0

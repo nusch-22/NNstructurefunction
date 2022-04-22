@@ -100,7 +100,7 @@ def load_data(
     }
 
 
-def model_trainer(**hyperparameters):
+def model_trainer(data_dict, **hyperparameters):
     # Collect the values for the hyperparameters
     nb_units_layer_1 = hyperparameters.get("units_1", 64)
     nb_units_layer_2 = hyperparameters.get("units_2", 32)
@@ -126,8 +126,6 @@ def model_trainer(**hyperparameters):
         restore_best_weights=True,
     )
 
-    data_dict = load_data()
-
     # Fit the Model as usual
     model.fit(
         data_dict["x_tr"],
@@ -148,9 +146,9 @@ def model_trainer(**hyperparameters):
 
 
 def define_hyperspace():
-    epochs_choices = [100, 1000, 2000]
-    activation_choices = ["relu", "sigmoid", "tanh"]
-    optimizer_choices = ["adam", "Adadelta", "RMSprop", "nadam"]
+    epochs_choices = [2000, 5000]
+    activation_choices = ["sigmoid", "tanh"]
+    optimizer_choices = ["adam", "RMSprop", "nadam"]
     initializer_choices = [
         "random_normal",
         "random_uniform",
@@ -158,8 +156,8 @@ def define_hyperspace():
         "glorot_uniform",
     ]
 
-    nb_units_layer_1 = hp.quniform("units_1", 5, 25, 4)
-    nb_units_layer_2 = hp.quniform("units_2", 5, 25, 4)
+    nb_units_layer_1 = hp.quniform("units_1", 10, 50, 4)
+    nb_units_layer_2 = hp.quniform("units_2", 10, 50, 4)
     activation = hp.choice("activation", activation_choices)
     optimizer = hp.choice("optimizer", optimizer_choices)
     epochs = hp.choice("epochs", epochs_choices)
@@ -177,14 +175,14 @@ def define_hyperspace():
     }
 
 
-# Define the hyperoptimization function
-def hyper_function(hyperspace_dict):
-    _, val_loss, _ = model_trainer(**hyperspace_dict)
-    return {"loss": val_loss, "status": "ok"}
-
-
-def perform_hyperopt(nb_trials=2):
+def perform_hyperopt(data_dict, nb_trials=2):
     hyperspace = define_hyperspace()
+
+    # Define the hyperoptimization function
+    def hyper_function(hyperspace_dict):
+        _, val_loss, _ = model_trainer(data_dict, **hyperspace_dict)
+        return {"loss": val_loss, "status": "ok"}
+
     trials = FileTrials(hyperopt_path, parameters=hyperspace)
     best = fmin(
         fn=hyper_function,
@@ -205,11 +203,15 @@ def perform_hyperopt(nb_trials=2):
     return best_setup
 
 
-def plot_constant_x():
+def create_replicas(y_data, y_err, n_rep=100):
+    y_dist = np.zeros((n_rep, y_data.shape[0]))
+    for i, mean in enumerate(y_data):
+        y_dist[:, i] = np.random.normal(loc=mean, scale=y_err[i], size=n_rep)
+    return y_dist
 
-    best_params = perform_hyperopt()
-    best_model, _, data_dict = model_trainer(**best_params)
 
+def plot_constant_x(best_model, data_dict):
+    # loop over x values
     for i, x in enumerate(data_dict["x_data"]):
         y = data_dict["y_data"][i]
         x_grid = np.linspace(x[0], x[-1], 100)
@@ -225,4 +227,7 @@ def plot_constant_x():
         plt.savefig(f"{fits_path}/FIT_{x[0,0]}.png")
 
 
-plot_constant_x()
+data_dict = load_data()
+best_params = perform_hyperopt(data_dict)
+best_model, _, data_dict = model_trainer(data_dict, **best_params)
+plot_constant_x(best_model, data_dict)
