@@ -19,6 +19,10 @@ tf.random.set_seed(1234)
 np.random.seed(5678)
 
 current_path = Path().absolute()
+hyperopt_path = current_path / "hyperopt"
+hyperopt_path.mkdir(exist_ok=True)
+fits_path = current_path / "fits"
+fits_path.mkdir(exist_ok=True)
 
 
 def split_trval(x_data, y_data, perc=0.3):
@@ -181,7 +185,7 @@ def hyper_function(hyperspace_dict):
 
 def perform_hyperopt(nb_trials=2):
     hyperspace = define_hyperspace()
-    trials = FileTrials(f"{current_path}/hyperopt/", parameters=hyperspace)
+    trials = FileTrials(hyperopt_path, parameters=hyperspace)
     best = fmin(
         fn=hyper_function,
         space=hyperspace,
@@ -193,10 +197,10 @@ def perform_hyperopt(nb_trials=2):
     # Save the best hyperparameters combination in order to return it later
     best_setup = space_eval(hyperspace, best)
     # Write the output of the best into a file
-    with open(f"{current_path}/hyperopt/best_hyperparameters.yaml", "w") as file:
+    with open(f"{hyperopt_path}/best_hyperparameters.yaml", "w") as file:
         yaml.dump(best_setup, file, default_flow_style=False)
     # Write the all the history of the hyperopt into a file
-    with open(f"{current_path}/hyperopt/hyperopt_history.pickle", "wb") as histfile:
+    with open(f"{hyperopt_path}/hyperopt_history.pickle", "wb") as histfile:
         pickle.dump(trials.trials, histfile)
     return best_setup
 
@@ -218,7 +222,7 @@ def plot_constant_x():
         plt.xlabel("$Q^2$ [GeV$^2$]")
         plt.ylabel("$F_2$")
         plt.title(f"Prediction of $F_2$ at $x={x[0,0]}$")
-        plt.savefig(f"{current_path}/fits/FIT_{x[0,0]}.png")
+        plt.savefig(f"{fits_path}/FIT_{x[0,0]}.png")
 
 
 plot_constant_x()

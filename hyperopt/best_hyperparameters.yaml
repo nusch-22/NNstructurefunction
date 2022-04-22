@@ -1,6 +1,7 @@
 activation: relu
-epochs: 2000
-initializer: glorot_uniform
-optimizer: nadam
-units_1: 24.0
-units_2: 8.0
+epochs: 1000
+initializer: random_normal
+learning_rate: 1.0451802250942976
+optimizer: adam
+units_1: 4.0
+units_2: 20.0
