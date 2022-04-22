@@ -1,0 +1,5 @@
+activation: relu
+epochs: 1000
+optimizer: adam
+units_1: 12.0
+units_2: 16.0
