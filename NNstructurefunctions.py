@@ -59,11 +59,15 @@ def load_data(
         x = input_data["x"]
         Q2 = np.array(input_data["Q2"])
         F_2 = np.array(input_data["F_2"])
+        F_2_err_stat = np.array(input_data["F_2_err_stat"])
+        F_2_err_sys = np.array(input_data["F_2_err_sys"])
+        F_2_err = F_2_err_stat + F_2_err_sys
 
         if Q2_cut != None:
             Q2_mask = np.where(Q2 < Q2_cut)
             Q2 = Q2[Q2_mask]
             F_2 = F_2[Q2_mask]
+            F_2_err = F_2_err[Q2_mask]
 
         if i == 0:
             x_data = np.zeros((len(Q2), 2))
@@ -72,20 +76,24 @@ def load_data(
             y_data = F_2
             x_all_data.append(x_data)
             y_all_data.append(y_data)
+            y_err = F_2_err
             x_tr, y_tr, x_val, y_val, size_val = split_trval(x_data, y_data)
         else:
             x_data = np.zeros((len(Q2), 2))
             x_data[:, 0] = x
             x_data[:, 1] = Q2
-            y_data = F_2
+            y_data_new = F_2
             x_all_data.append(x_data)
             y_all_data.append(y_data)
+            y_err_new = F_2_err
             x_tr_new, y_tr_new, x_val_new, y_val_new, size_val = split_trval(
-                x_data, y_data
+                x_data, y_data_new
             )
 
             x_tr = np.concatenate([x_tr, x_tr_new], axis=0)
             y_tr = np.concatenate([y_tr, y_tr_new], axis=0)
+            y_err = np.concatenate([y_err, y_err_new], axis=0)
+            y_data = np.concatenate([y_data, y_data_new], axis=0)
             if size_val > 0:
                 x_val = np.concatenate([x_val, x_val_new], axis=0)
                 y_val = np.concatenate([y_val, y_val_new], axis=0)
@@ -95,8 +103,10 @@ def load_data(
         "y_tr": y_tr,
         "x_val": x_val,
         "y_val": y_val,
-        "x_data": x_all_data,
-        "y_data": y_all_data,
+        "x_sep_data": x_all_data,
+        "y_sep_data": y_all_data,
+        "y_data": y_data,
+        "y_err": y_err,
     }
 
 
@@ -203,17 +213,40 @@ def perform_hyperopt(data_dict, nb_trials=2):
     return best_setup
 
 
-def create_replicas(y_data, y_err, n_rep=100):
-    y_dist = np.zeros((n_rep, y_data.shape[0]))
-    for i, mean in enumerate(y_data):
-        y_dist[:, i] = np.random.normal(loc=mean, scale=y_err[i], size=n_rep)
+def create_replicas(data_dict, n_rep=100):
+    y_dist = np.zeros((n_rep, data_dict["y_data"].shape[0]))
+    for i, mean in enumerate(data_dict["y_data"]):
+        y_dist[:, i] = np.random.normal(
+            loc=mean, scale=data_dict["y_err"][i], size=n_rep
+        )
     return y_dist
+
+
+def plot_constant_x_reps(x_data, y_data, y_err, x_grid, p_mid, p_err):
+
+    plt.figure()
+    plt.errorbar(x_data, y_data, yerr=y_err, label="Data", fmt="ko", capsize=5)
+    plt.fill_between(
+        x_grid,
+        y1=p_mid - p_err,
+        y2=p_mid + p_err,
+        color="red",
+        edgecolor="red",
+        label="Prediction",
+        alpha=0.25,
+    )
+    plt.plot(x_grid, p_mid, color="red", linestyle="dashed")
+    plt.legend()
+    plt.xlabel("$Q^2$ [GeV$^2$]")
+    plt.ylabel("$F_2$")
+    plt.title(f"Prediction of $F_2$ at $x={x_data[0,0]}$")
+    plt.savefig(f"{fits_path}/FIT_REPS_{x_data[0,0]}.png")
 
 
 def plot_constant_x(best_model, data_dict):
     # loop over x values
-    for i, x in enumerate(data_dict["x_data"]):
-        y = data_dict["y_data"][i]
+    for i, x in enumerate(data_dict["x_sep_data"]):
+        y = data_dict["y_sep_data"][i]
         x_grid = np.linspace(x[0], x[-1], 100)
         y_pred = best_model(x_grid)
 
@@ -228,6 +261,10 @@ def plot_constant_x(best_model, data_dict):
 
 
 data_dict = load_data()
-best_params = perform_hyperopt(data_dict)
-best_model, _, data_dict = model_trainer(data_dict, **best_params)
-plot_constant_x(best_model, data_dict)
+# best_params = perform_hyperopt(data_dict)
+
+print(create_replicas(data_dict))
+
+
+# best_model, _, data_dict = model_trainer(data_dict, **best_params)
+# plot_constant_x(best_model, data_dict)
