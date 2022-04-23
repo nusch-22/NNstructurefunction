@@ -62,7 +62,6 @@ def load_data(
         F_2 = np.array(input_data["F_2"])
         F_2_err_stat = np.array(input_data["F_2_err_stat"])
         F_2_err_sys = np.array(input_data["F_2_err_sys"])
-        F_2_err = F_2_err_stat + F_2_err_sys
         x_data_new = np.zeros((len(Q2), 2))
 
         if Q2_cut != None:
@@ -78,7 +77,8 @@ def load_data(
             y_data = F_2
             x_all_data.append(x_data)
             y_all_data.append(y_data)
-            y_err = F_2_err
+            y_err_stat = F_2_err_stat
+            y_err_sys = F_2_err_sys
             x_tr, y_tr, x_val, y_val, size_val = split_trval(x_data, y_data)
         else:
             x_data_new[:, 0] = x
@@ -86,14 +86,16 @@ def load_data(
             y_data_new = F_2
             x_all_data.append(x_data)
             y_all_data.append(y_data)
-            y_err_new = F_2_err
+            y_err_stat_new = F_2_err_stat
+            y_err_sys_new = F_2_err_sys
             x_tr_new, y_tr_new, x_val_new, y_val_new, size_val = split_trval(
                 x_data_new, y_data_new
             )
 
             x_tr = np.concatenate([x_tr, x_tr_new], axis=0)
             y_tr = np.concatenate([y_tr, y_tr_new], axis=0)
-            y_err = np.concatenate([y_err, y_err_new], axis=0)
+            y_err_stat = np.concatenate([y_err_stat, y_err_stat_new], axis=0)
+            y_err_sys = np.concatenate([y_err_sys, y_err_sys_new], axis=0)
             x_data = np.concatenate([x_data, x_data_new], axis=0)
             y_data = np.concatenate([y_data, y_data_new], axis=0)
             if size_val > 0:
@@ -107,13 +109,27 @@ def load_data(
         "y_val": y_val,
         "x_data": x_data,
         "y_data": y_data,
-        "y_err": y_err,
+        "y_err_stat": y_err_stat,
+        "y_err_sys": y_err_sys,
         "x_sep_data": x_all_data,
         "y_sep_data": y_all_data,
     }
 
 
-# costun loss function
+def compute_covmat(data_dict):
+    covmat = np.zeros((data_dict["y_data"].shape[0], data_dict["y_data"].shape[0]))
+    for i in range(data_dict["y_data"].shape[0]):
+        for j in range(data_dict["y_data"].shape[0]):
+            covmat[i, j] = (
+                data_dict["y_err_sys"][i] * data_dict["y_err_sys"][j]
+                + data_dict["y_data"][i] * data_dict["y_data"][j]
+            )
+            if i == j:
+                covmat[i, j] += data_dict["y_err_stat"][i] ** 2
+    return covmat
+
+
+# costum loss function
 def chi2_with_covmat(covmat, ndata):
     inverted = np.linalg.inv(covmat)
     # Convert numpy array into tensorflow object
@@ -144,7 +160,7 @@ def model_trainer(data_dict, **hyperparameters):
 
     # Compile the Model as usual
     ndata = data_dict["y_data"].shape[0]
-    covmat = np.cov(data_dict["y_data"])
+    covmat = compute_covmat(data_dict)
     model.compile(
         loss=chi2_with_covmat(covmat, ndata), optimizer=optimizer, metrics=["accuracy"]
     )
@@ -239,7 +255,9 @@ def create_replicas(data_dict, n_rep=100):
     y_dist = np.zeros((n_rep, data_dict["y_data"].shape[0]))
     for i, mean in enumerate(data_dict["y_data"]):
         y_dist[:, i] = np.random.normal(
-            loc=mean, scale=data_dict["y_err"][i], size=n_rep
+            loc=mean,
+            scale=(data_dict["y_err_stat"][i] + data_dict["y_err_sys"][i]),
+            size=n_rep,
         )
     return y_dist
 
@@ -283,7 +301,7 @@ def plot_constant_x(best_model, data_dict):
 
 
 data_dict = load_data()
-# best_params = perform_hyperopt(data_dict)
+best_params = perform_hyperopt(data_dict)
 
 # create_replicas()
 
