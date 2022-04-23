@@ -4,6 +4,7 @@ import pickle
 import numpy as np
 import matplotlib.pyplot as plt
 import tensorflow as tf
+import tensorflow.keras.backend as K
 
 from pathlib import Path
 from filetrials import FileTrials, space_eval
@@ -62,6 +63,7 @@ def load_data(
         F_2_err_stat = np.array(input_data["F_2_err_stat"])
         F_2_err_sys = np.array(input_data["F_2_err_sys"])
         F_2_err = F_2_err_stat + F_2_err_sys
+        x_data_new = np.zeros((len(Q2), 2))
 
         if Q2_cut != None:
             Q2_mask = np.where(Q2 < Q2_cut)
@@ -79,20 +81,20 @@ def load_data(
             y_err = F_2_err
             x_tr, y_tr, x_val, y_val, size_val = split_trval(x_data, y_data)
         else:
-            x_data = np.zeros((len(Q2), 2))
-            x_data[:, 0] = x
-            x_data[:, 1] = Q2
+            x_data_new[:, 0] = x
+            x_data_new[:, 1] = Q2
             y_data_new = F_2
             x_all_data.append(x_data)
             y_all_data.append(y_data)
             y_err_new = F_2_err
             x_tr_new, y_tr_new, x_val_new, y_val_new, size_val = split_trval(
-                x_data, y_data_new
+                x_data_new, y_data_new
             )
 
             x_tr = np.concatenate([x_tr, x_tr_new], axis=0)
             y_tr = np.concatenate([y_tr, y_tr_new], axis=0)
             y_err = np.concatenate([y_err, y_err_new], axis=0)
+            x_data = np.concatenate([x_data, x_data_new], axis=0)
             y_data = np.concatenate([y_data, y_data_new], axis=0)
             if size_val > 0:
                 x_val = np.concatenate([x_val, x_val_new], axis=0)
@@ -103,11 +105,27 @@ def load_data(
         "y_tr": y_tr,
         "x_val": x_val,
         "y_val": y_val,
-        "x_sep_data": x_all_data,
-        "y_sep_data": y_all_data,
+        "x_data": x_data,
         "y_data": y_data,
         "y_err": y_err,
+        "x_sep_data": x_all_data,
+        "y_sep_data": y_all_data,
     }
+
+
+# costun loss function
+def chi2_with_covmat(covmat, ndata):
+    inverted = np.linalg.inv(covmat)
+    # Convert numpy array into tensorflow object
+    invcovmat = K.constant(inverted)
+
+    def custom_loss(y_true, y_pred):
+        # (yt - yp) * covmat * (yt - yp)
+        tmp = y_true - y_pred
+        right_dot = K.tf.tensordot(invcovmat, K.transpose(tmp), axes=1)
+        return K.tf.tensordot(tmp, right_dot, axes=1) / ndata
+
+    return custom_loss
 
 
 def model_trainer(data_dict, **hyperparameters):
@@ -125,7 +143,11 @@ def model_trainer(data_dict, **hyperparameters):
     model.add(Dense(units=1, activation="linear"))
 
     # Compile the Model as usual
-    model.compile(loss="mse", optimizer=optimizer, metrics=["accuracy"])
+    ndata = data_dict["y_data"].shape[0]
+    covmat = np.cov(data_dict["y_data"])
+    model.compile(
+        loss=chi2_with_covmat(covmat, ndata), optimizer=optimizer, metrics=["accuracy"]
+    )
 
     # Callbacks for Early Stopping
     ES = EarlyStopping(
@@ -263,8 +285,7 @@ def plot_constant_x(best_model, data_dict):
 data_dict = load_data()
 # best_params = perform_hyperopt(data_dict)
 
-print(create_replicas(data_dict))
-
+# create_replicas()
 
 # best_model, _, data_dict = model_trainer(data_dict, **best_params)
 # plot_constant_x(best_model, data_dict)
