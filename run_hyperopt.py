@@ -180,11 +180,23 @@ def model_trainer(data_dict, runcard, **hyperparameters):
     optimizer = hyperparameters.get("optimizer", "adam")
     activation = hyperparameters.get("activation", "relu")
     epochs = hyperparameters.get("epochs", 10)
+    nb_layers = hyperparameters.get(
+        "nb_layers",
+        (2, {"units_layer_1_2": nb_units_layer_1, "units_layer_2_2": nb_units_layer_2}),
+    )
+
+    layers = list(nb_layers[1].keys())
+    nb_units_1 = nb_layers[1][layers[0]]
 
     # Construct the model
     model = Sequential()
-    model.add(Dense(units=nb_units_layer_1, activation=activation, input_shape=[2]))
-    model.add(Dense(units=nb_units_layer_2, activation=activation))
+    model.add(Dense(units=nb_units_1, activation=activation, input_shape=[2]))
+
+    if nb_layers[0] > 1:
+        for layer in layers[1:]:
+            model.add(Dense(units=nb_layers[1][layer], activation=activation))
+
+    # output layer
     model.add(Dense(units=1, activation="linear"))
 
     # Compile the Model as usual
@@ -222,21 +234,20 @@ def model_trainer(data_dict, runcard, **hyperparameters):
 
 
 def define_hyperspace(runcard):
-    nb_units_layer_1_choices = runcard["nb_units_layer_1_choices"]
-    nb_units_layer_2_choices = runcard["nb_units_layer_2_choices"]
+    nb_units_per_layer = runcard["nb_units_per_layer"]
     learning_rate_choices = runcard["learning_rate_choices"]
 
     nb_units_layer_1 = hp.quniform(
         "units_1",
-        nb_units_layer_1_choices["min"],
-        nb_units_layer_1_choices["max"],
-        nb_units_layer_1_choices["samples"],
+        nb_units_per_layer["min"],
+        nb_units_per_layer["max"],
+        nb_units_per_layer["samples"],
     )
     nb_units_layer_2 = hp.quniform(
         "units_2",
-        nb_units_layer_2_choices["min"],
-        nb_units_layer_2_choices["max"],
-        nb_units_layer_2_choices["samples"],
+        nb_units_per_layer["min"],
+        nb_units_per_layer["max"],
+        nb_units_per_layer["samples"],
     )
     activation = hp.choice("activation", runcard["activation_choices"])
     optimizer = hp.choice("optimizer", runcard["optimizer_choices"])
@@ -247,6 +258,62 @@ def define_hyperspace(runcard):
         float(learning_rate_choices["min"]),
         float(learning_rate_choices["max"]),
     )
+    nb_layers = hp.choice(
+        "nb_layers",
+        [
+            (
+                1,
+                {
+                    "units_layer_1_1": hp.quniform(
+                        "units_layer_1_1",
+                        nb_units_per_layer["min"],
+                        nb_units_per_layer["max"],
+                        nb_units_per_layer["samples"],
+                    )
+                },
+            ),
+            (
+                2,
+                {
+                    "units_layer_1_2": hp.quniform(
+                        "units_layer_1_2",
+                        nb_units_per_layer["min"],
+                        nb_units_per_layer["max"],
+                        nb_units_per_layer["samples"],
+                    ),
+                    "units_layer_2_2": hp.quniform(
+                        "units_layer_2_2",
+                        nb_units_per_layer["min"],
+                        nb_units_per_layer["max"],
+                        nb_units_per_layer["samples"],
+                    ),
+                },
+            ),
+            (
+                3,
+                {
+                    "units_layer_1_3": hp.quniform(
+                        "units_layer_1_3",
+                        nb_units_per_layer["min"],
+                        nb_units_per_layer["max"],
+                        nb_units_per_layer["samples"],
+                    ),
+                    "units_layer_2_3": hp.quniform(
+                        "units_layer_2_3",
+                        nb_units_per_layer["min"],
+                        nb_units_per_layer["max"],
+                        nb_units_per_layer["samples"],
+                    ),
+                    "units_layer_3_3": hp.quniform(
+                        "units_layer_3_3",
+                        nb_units_per_layer["min"],
+                        nb_units_per_layer["max"],
+                        nb_units_per_layer["samples"],
+                    ),
+                },
+            ),
+        ],
+    )
 
     return {
         "units_1": nb_units_layer_1,
@@ -256,6 +323,7 @@ def define_hyperspace(runcard):
         "epochs": epochs,
         "initializer": initializer,
         "learning_rate": learning_rate,
+        "nb_layers": nb_layers,
     }
 
 

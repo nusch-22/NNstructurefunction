@@ -8,11 +8,8 @@ epochs_choices: [2000, 5000]
 activation_choices: ["sigmoid", "tanh"]
 optimizer_choices: ["adam", "RMSprop", "nadam"]
 initializer_choices: ["random_normal", "random_uniform", "glorot_normal", "glorot_uniform"]
-nb_units_layer_1_choices: 
-  min: 10
-  max: 50
-  samples: 4
-nb_units_layer_2_choices:
+layers_choices: [1, 2, 3] # not taken into account; 1 2 3 is hardcoded now
+nb_units_per_layer: 
   min: 10
   max: 50
   samples: 4
