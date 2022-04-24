@@ -1,7 +1,7 @@
-activation: tanh
+activation: sigmoid
 epochs: 2000
-initializer: glorot_normal
-learning_rate: 1.0560692142365946
+initializer: random_uniform
+learning_rate: 1.0733958345123178
 optimizer: nadam
-units_1: 24.0
-units_2: 16.0
+units_1: 40.0
+units_2: 40.0

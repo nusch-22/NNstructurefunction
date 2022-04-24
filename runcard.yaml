@@ -1,4 +1,4 @@
-Q2_cut: 20
+Q2_cut: 50
 
 # Hyperparameteroptimization choices
 nb_trials: 2
