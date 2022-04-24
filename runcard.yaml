@@ -1,0 +1,19 @@
+Q2_cut: 20
+
+# Hyperparameteroptimization choices
+nb_trials: 2
+epochs_choices: [2000, 5000]
+activation_choices: ["sigmoid", "tanh"]
+optimizer_choices: ["adam", "RMSprop", "nadam"]
+initializer_choices: ["random_normal", "random_uniform", "glorot_normal", "glorot_uniform"]
+nb_units_layer_1_choices: 
+  min: 10
+  max: 50
+  samples: 4
+nb_units_layer_2_choices:
+  min: 10
+  max: 50
+  samples: 4
+learning_rate_choices: 
+  min: 1e-6
+  max: 1e-1

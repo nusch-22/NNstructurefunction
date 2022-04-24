@@ -25,6 +25,12 @@ hyperopt_path.mkdir(exist_ok=True)
 fits_path = current_path / "fits"
 fits_path.mkdir(exist_ok=True)
 
+# load runcard with parameters
+def load_runcard(filename):
+    with open(f"{current_path}/" + filename, "r") as file:
+        input_params = yaml.safe_load(file)
+    return input_params
+
 
 def split_trval(x_data, y_data, perc=0.3):
     size_val = round(x_data.shape[0] * perc)
@@ -38,9 +44,8 @@ def split_trval(x_data, y_data, perc=0.3):
     return x_tr, y_tr, x_val, y_val
 
 
-def load_data(Q2_cut=None):
+def load_data(runcard):
     filenames = os.listdir(f"{current_path}/data")
-    # filenames = ["DATA_CHORUS_0.02.yaml"]
 
     x_sep_data = []
     y_sep_data = []
@@ -55,8 +60,8 @@ def load_data(Q2_cut=None):
         F_2_err_stat = np.array(input_data["F_2_err_stat"])
         F_2_err_sys = np.array(input_data["F_2_err_sys"])
 
-        if Q2_cut != None:
-            Q2_mask = np.where(Q2 < Q2_cut)
+        if runcard["Q2_cut"] != None:
+            Q2_mask = np.where(Q2 < runcard["Q2_cut"])
             Q2 = Q2[Q2_mask]
             F_2 = F_2[Q2_mask]
             F_2_err_stat = F_2_err_stat[Q2_mask]
@@ -202,24 +207,32 @@ def model_trainer(data_dict, **hyperparameters):
     return model, scores[0]
 
 
-def define_hyperspace():
-    epochs_choices = [2000, 5000]
-    activation_choices = ["sigmoid", "tanh"]
-    optimizer_choices = ["adam", "RMSprop", "nadam"]
-    initializer_choices = [
-        "random_normal",
-        "random_uniform",
-        "glorot_normal",
-        "glorot_uniform",
-    ]
+def define_hyperspace(runcard):
+    nb_units_layer_1_choices = runcard["nb_units_layer_1_choices"]
+    nb_units_layer_2_choices = runcard["nb_units_layer_2_choices"]
+    learning_rate_choices = runcard["learning_rate_choices"]
 
-    nb_units_layer_1 = hp.quniform("units_1", 10, 50, 4)
-    nb_units_layer_2 = hp.quniform("units_2", 10, 50, 4)
-    activation = hp.choice("activation", activation_choices)
-    optimizer = hp.choice("optimizer", optimizer_choices)
-    epochs = hp.choice("epochs", epochs_choices)
-    initializer = hp.choice("initializer", initializer_choices)
-    learning_rate = hp.loguniform("learning_rate", 1e-6, 1e-1)
+    nb_units_layer_1 = hp.quniform(
+        "units_1",
+        nb_units_layer_1_choices["min"],
+        nb_units_layer_1_choices["max"],
+        nb_units_layer_1_choices["samples"],
+    )
+    nb_units_layer_2 = hp.quniform(
+        "units_2",
+        nb_units_layer_2_choices["min"],
+        nb_units_layer_2_choices["max"],
+        nb_units_layer_2_choices["samples"],
+    )
+    activation = hp.choice("activation", runcard["activation_choices"])
+    optimizer = hp.choice("optimizer", runcard["optimizer_choices"])
+    epochs = hp.choice("epochs", runcard["epochs_choices"])
+    initializer = hp.choice("initializer", runcard["initializer_choices"])
+    learning_rate = hp.loguniform(
+        "learning_rate",
+        float(learning_rate_choices["min"]),
+        float(learning_rate_choices["max"]),
+    )
 
     return {
         "units_1": nb_units_layer_1,
@@ -232,8 +245,8 @@ def define_hyperspace():
     }
 
 
-def perform_hyperopt(data_dict, nb_trials=2):
-    hyperspace = define_hyperspace()
+def perform_hyperopt(data_dict, runcard):
+    hyperspace = define_hyperspace(runcard)
 
     # Define the hyperoptimization function
     def hyper_function(hyperspace_dict):
@@ -245,7 +258,7 @@ def perform_hyperopt(data_dict, nb_trials=2):
         fn=hyper_function,
         space=hyperspace,
         verbose=1,
-        max_evals=nb_trials,
+        max_evals=runcard["nb_trials"],
         algo=tpe.suggest,
         trials=trials,
     )
@@ -311,8 +324,9 @@ def plot_constant_x(best_model, data_dict):
         ax.clear()
 
 
-data_dict = load_data(Q2_cut=30)
-best_params = perform_hyperopt(data_dict)
+runcard = load_runcard("runcard.yaml")
+data_dict = load_data(runcard)
+best_params = perform_hyperopt(data_dict, runcard)
 
 # create_replicas()
 
