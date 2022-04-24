@@ -58,6 +58,9 @@ def split_trval(x_data, y_data, perc=0.3):
 def load_data(runcard):
     filenames = os.listdir(f"{current_path}/data")
 
+    x_sep_data = []
+    y_sep_data = []
+
     for i, filename in enumerate(filenames):
         with open(f"{current_path}/data/" + filename, "r") as file:
             input_data = yaml.safe_load(file)
@@ -80,11 +83,15 @@ def load_data(runcard):
             x_data[:, 0] = x
             x_data[:, 1] = Q2
             y_data = F_2
+            x_sep_data.append(x_data)
+            y_sep_data.append(y_data)
             y_err_stat = F_2_err_stat
             y_err_sys = F_2_err_sys
 
             if x_data.shape[0] >= 3:
-                x_tr, y_tr, x_val, y_val = split_trval(x_data, y_data)
+                x_tr, y_tr, x_val, y_val = split_trval(
+                    x_data, y_data, perc=runcard["validation_size"]
+                )
                 val = True
             else:
                 x_tr = x_data
@@ -100,7 +107,7 @@ def load_data(runcard):
 
             if x_data_new.shape[0] >= 3:
                 x_tr_new, y_tr_new, x_val_new, y_val_new = split_trval(
-                    x_data_new, y_data_new
+                    x_data_new, y_data_new, perc=runcard["validation_size"]
                 )
                 if val:
                     x_val = np.concatenate([x_val, x_val_new], axis=0)
@@ -119,6 +126,8 @@ def load_data(runcard):
             y_err_stat = np.concatenate([y_err_stat, y_err_stat_new], axis=0)
             y_err_sys = np.concatenate([y_err_sys, y_err_sys_new], axis=0)
 
+            x_sep_data.append(x_data_new)
+            y_sep_data.append(y_data_new)
             x_data = np.concatenate([x_data, x_data_new], axis=0)
             y_data = np.concatenate([y_data, y_data_new], axis=0)
 
@@ -131,6 +140,8 @@ def load_data(runcard):
         "y_data": y_data,
         "y_err_stat": y_err_stat,
         "y_err_sys": y_err_sys,
+        "x_sep_data": x_sep_data,
+        "y_sep_data": y_sep_data,
     }
 
 
@@ -162,7 +173,7 @@ def chi2_with_covmat(covmat, ndata):
     return custom_loss
 
 
-def model_trainer(data_dict, **hyperparameters):
+def model_trainer(data_dict, runcard, **hyperparameters):
     # Collect the values for the hyperparameters
     nb_units_layer_1 = hyperparameters.get("units_1", 64)
     nb_units_layer_2 = hyperparameters.get("units_2", 32)
@@ -177,8 +188,9 @@ def model_trainer(data_dict, **hyperparameters):
     model.add(Dense(units=1, activation="linear"))
 
     # Compile the Model as usual
-    ndata = data_dict["y_data"].shape[0]
+    ndata = data_dict["y_tr"].shape[0]
     covmat = compute_covmat(data_dict)
+    # model.compile(loss=chi2_with_covmat(covmat, ndata), optimizer=optimizer, metrics=["accuracy"])
     model.compile(loss="mse", optimizer=optimizer, metrics=["accuracy"])
 
     # Callbacks for Early Stopping
@@ -196,7 +208,7 @@ def model_trainer(data_dict, **hyperparameters):
         data_dict["y_tr"],
         validation_data=(data_dict["x_val"], data_dict["y_val"]),
         epochs=epochs,
-        batch_size=1,
+        batch_size=runcard["batch_size"],
         verbose=0,
         callbacks=[ES],
     )
@@ -252,7 +264,7 @@ def perform_hyperopt(data_dict, runcard):
 
     # Define the hyperoptimization function
     def hyper_function(hyperspace_dict):
-        _, val_loss = model_trainer(data_dict, **hyperspace_dict)
+        _, val_loss = model_trainer(data_dict, runcard, **hyperspace_dict)
         return {"loss": val_loss, "status": "ok"}
 
     trials = FileTrials(hyperopt_path, parameters=hyperspace)

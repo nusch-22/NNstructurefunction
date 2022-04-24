@@ -1,7 +1,7 @@
-activation: sigmoid
-epochs: 2000
-initializer: random_uniform
-learning_rate: 1.0733958345123178
-optimizer: nadam
-units_1: 40.0
-units_2: 40.0
+activation: tanh
+epochs: 5000
+initializer: glorot_normal
+learning_rate: 1.091337530380227
+optimizer: adam
+units_1: 28.0
+units_2: 24.0
