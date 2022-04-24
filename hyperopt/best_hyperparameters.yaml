@@ -1,7 +1,7 @@
 activation: tanh
-epochs: 5000
-initializer: glorot_uniform
-learning_rate: 1.0105836706572595
-optimizer: adam
+epochs: 2000
+initializer: glorot_normal
+learning_rate: 1.0048211403155936
+optimizer: nadam
 units_1: 24.0
-units_2: 12.0
+units_2: 40.0
