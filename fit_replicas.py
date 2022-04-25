@@ -1,19 +1,11 @@
 #!/usr/bin/env python
 
-import os
 import yaml
-import pickle
 import numpy as np
 import matplotlib.pyplot as plt
 import tensorflow as tf
-import tensorflow.keras.backend as K
 import argparse
 
-from pathlib import Path
-from filetrials import FileTrials, space_eval
-from tensorflow.keras import Sequential
-from tensorflow.keras.layers import Dense
-from tensorflow.keras.callbacks import Callback, EarlyStopping
 from run_hyperopt import (
     load_runcard,
     hyperopt_path,
@@ -21,9 +13,6 @@ from run_hyperopt import (
     load_data,
     model_trainer,
 )
-
-# Import hyperopt modules
-from hyperopt import hp, fmin, tpe
 
 # Fix the seeds for reproducible results
 tf.random.set_seed(1234)
