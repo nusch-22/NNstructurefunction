@@ -1,12 +1,10 @@
 activation: tanh
-epochs: 5000
-initializer: random_normal
-learning_rate: 1.040502866163086
+epochs: 2000
+initializer: random_uniform
+learning_rate: 1.0899015654524997
 nb_layers: !!python/tuple
-- 3
-- units_layer_1_3: 24.0
-  units_layer_2_3: 32.0
-  units_layer_3_3: 16.0
+- 1
+- units_layer_1_1: 36.0
 optimizer: nadam
-units_1: 16.0
-units_2: 12.0
+units_1: 40.0
+units_2: 20.0
