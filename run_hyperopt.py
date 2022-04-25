@@ -2,6 +2,7 @@
 
 import os
 import yaml
+import json
 import pickle
 import numpy as np
 import tensorflow as tf
@@ -23,6 +24,7 @@ np.random.seed(5678)
 
 current_path = Path().absolute()
 hyperopt_path = current_path
+data_path = current_path / "data"
 
 
 def argument_parser():
@@ -72,13 +74,14 @@ def split_trval(x_data, y_data, y_err_stat, y_err_sys, perc=0.3):
 
 
 def load_data(runcard):
-    filenames = os.listdir(f"{current_path}/data")
+    filenames = os.listdir(f"{data_path}")
 
     x_sep_data = []
     y_sep_data = []
+    y_err_sep = []
 
     for i, filename in enumerate(filenames):
-        with open(f"{current_path}/data/" + filename, "r") as file:
+        with open(f"{data_path}/" + filename, "r") as file:
             input_data = yaml.safe_load(file)
 
         x = input_data["x"]
@@ -101,6 +104,7 @@ def load_data(runcard):
             y_data = F_2
             x_sep_data.append(x_data)
             y_sep_data.append(y_data)
+            y_err_sep.append(F_2_err_stat + F_2_err_sys)
             y_err_stat = F_2_err_stat
             y_err_sys = F_2_err_sys
 
@@ -121,7 +125,6 @@ def load_data(runcard):
                     y_err_sys,
                     perc=runcard["validation_size"],
                 )
-                # import pdb;pdb.set_trace()
                 val = True
             else:
                 x_tr = x_data
@@ -185,10 +188,11 @@ def load_data(runcard):
             y_err_sys = np.concatenate([y_err_sys, y_err_sys_new], axis=0)
             x_sep_data.append(x_data_new)
             y_sep_data.append(y_data_new)
+            y_err_sep.append(F_2_err_stat + F_2_err_sys)
             x_data = np.concatenate([x_data, x_data_new], axis=0)
             y_data = np.concatenate([y_data, y_data_new], axis=0)
 
-    return {
+    data_dict = {
         "x_tr": x_tr,
         "y_tr": y_tr,
         "y_tr_err_stat": y_tr_err_stat,
@@ -203,7 +207,9 @@ def load_data(runcard):
         "y_err_sys": y_err_sys,
         "x_sep_data": x_sep_data,
         "y_sep_data": y_sep_data,
+        "y_err_sep": y_err_sep,
     }
+    return data_dict
 
 
 def compute_covmat(data_dict):
@@ -383,7 +389,8 @@ def perform_hyperopt(data_dict, runcard):
     return best_setup
 
 
-args = argument_parser()
-runcard = load_runcard(args.runcard)
-data_dict = load_data(runcard)
-best_params = perform_hyperopt(data_dict, runcard)
+if __name__ == "__main__":
+    args = argument_parser()
+    runcard = load_runcard(args.runcard)
+    data_dict = load_data(runcard)
+    best_params = perform_hyperopt(data_dict, runcard)

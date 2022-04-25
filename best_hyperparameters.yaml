@@ -2,7 +2,7 @@ activation: tanh
 epochs: 2000
 initializer: glorot_normal
 learning_rate: 1.00681055832278
-nb_layers: !!python/tuple
+nb_layers:
 - 3
 - units_layer_1: 20.0
   units_layer_2: 44.0
