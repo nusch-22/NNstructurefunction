@@ -2,7 +2,7 @@ Q2_cut: 50
 validation_size: 0.3
 
 # Hyperparameteroptimization choices
-nb_trials: 2
+nb_trials: 8
 epochs_choices: [2000, 5000]
 activation_choices: ["sigmoid", "tanh"]
 optimizer_choices: ["adam", "RMSprop", "nadam"]

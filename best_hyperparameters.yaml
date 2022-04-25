@@ -1,0 +1,11 @@
+activation: tanh
+epochs: 5000
+initializer: glorot_uniform
+learning_rate: 1.033330768168472
+nb_layers: !!python/tuple
+- 4
+- units_layer_1: 16.0
+  units_layer_2: 32.0
+  units_layer_3: 12.0
+  units_layer_4: 28.0
+optimizer: adam
