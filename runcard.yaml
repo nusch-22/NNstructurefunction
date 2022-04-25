@@ -1,6 +1,5 @@
 Q2_cut: 50
 validation_size: 0.3
-batch_size: 1
 
 # Hyperparameteroptimization choices
 nb_trials: 2
@@ -8,7 +7,7 @@ epochs_choices: [2000, 5000]
 activation_choices: ["sigmoid", "tanh"]
 optimizer_choices: ["adam", "RMSprop", "nadam"]
 initializer_choices: ["random_normal", "random_uniform", "glorot_normal", "glorot_uniform"]
-layers_choices: [1, 2, 3] # not taken into account; 1 2 3 is hardcoded now
+layers_choices: [2, 3, 4]
 nb_units_per_layer: 
   min: 10
   max: 50

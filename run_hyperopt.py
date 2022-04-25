@@ -43,16 +43,31 @@ def load_runcard(filename):
     return input_params
 
 
-def split_trval(x_data, y_data, perc=0.3):
+def split_trval(x_data, y_data, y_err_stat, y_err_sys, perc=0.3):
     size_val = round(x_data.shape[0] * perc)
     idx = np.random.choice(
         np.arange(1, x_data.shape[0] - 1, 2), size_val, replace=False
     )
     x_val = x_data[idx]
     y_val = y_data[idx]
+    y_val_err_stat = y_err_stat[idx]
+    y_val_err_sys = y_err_sys[idx]
+
     x_tr = np.delete(x_data, idx, axis=0)
     y_tr = np.delete(y_data, idx)
-    return x_tr, y_tr, x_val, y_val
+    y_tr_err_stat = np.delete(y_err_stat, idx)
+    y_tr_err_sys = np.delete(y_err_sys, idx)
+
+    return (
+        x_tr,
+        y_tr,
+        y_tr_err_stat,
+        y_tr_err_sys,
+        x_val,
+        y_val,
+        y_val_err_stat,
+        y_val_err_sys,
+    )
 
 
 def load_data(runcard):
@@ -89,13 +104,29 @@ def load_data(runcard):
             y_err_sys = F_2_err_sys
 
             if x_data.shape[0] >= 3:
-                x_tr, y_tr, x_val, y_val = split_trval(
-                    x_data, y_data, perc=runcard["validation_size"]
+                (
+                    x_tr,
+                    y_tr,
+                    y_tr_err_stat,
+                    y_tr_err_sys,
+                    x_val,
+                    y_val,
+                    y_val_err_stat,
+                    y_val_err_sys,
+                ) = split_trval(
+                    x_data,
+                    y_data,
+                    y_err_stat,
+                    y_err_sys,
+                    perc=runcard["validation_size"],
                 )
+                # import pdb;pdb.set_trace()
                 val = True
             else:
                 x_tr = x_data
                 y_tr = y_data
+                y_tr_err_stat = y_err_stat
+                y_tr_err_sys = y_err_sys
                 val = False
         else:
             x_data_new = np.zeros((len(Q2), 2))
@@ -106,26 +137,51 @@ def load_data(runcard):
             y_err_sys_new = F_2_err_sys
 
             if x_data_new.shape[0] >= 3:
-                x_tr_new, y_tr_new, x_val_new, y_val_new = split_trval(
-                    x_data_new, y_data_new, perc=runcard["validation_size"]
+                (
+                    x_tr_new,
+                    y_tr_new,
+                    y_tr_err_stat_new,
+                    y_tr_err_sys_new,
+                    x_val_new,
+                    y_val_new,
+                    y_val_err_stat_new,
+                    y_val_err_sys_new,
+                ) = split_trval(
+                    x_data_new,
+                    y_data_new,
+                    y_err_stat_new,
+                    y_err_sys_new,
+                    perc=runcard["validation_size"],
                 )
                 if val:
                     x_val = np.concatenate([x_val, x_val_new], axis=0)
                     y_val = np.concatenate([y_val, y_val_new], axis=0)
+                    y_val_err_stat = np.concatenate(
+                        [y_val_err_stat, y_val_err_stat_new], axis=0
+                    )
+                    y_val_err_sys = np.concatenate(
+                        [y_val_err_sys, y_val_err_sys_new], axis=0
+                    )
                 else:
                     x_val = x_val_new
                     y_val = y_val_new
+                    y_val_err_stat = y_val_err_stat_new
+                    y_val_err_sys = y_val_err_sys_new
                     val = True
 
             else:
                 x_tr_new = x_data_new
                 y_tr_new = y_data_new
+                y_tr_err_stat_new = y_err_stat_new
+                y_tr_err_sys_new = y_err_sys_new
 
             x_tr = np.concatenate([x_tr, x_tr_new], axis=0)
             y_tr = np.concatenate([y_tr, y_tr_new], axis=0)
+            y_tr_err_stat = np.concatenate([y_tr_err_stat, y_tr_err_stat_new], axis=0)
+            y_tr_err_sys = np.concatenate([y_tr_err_sys, y_tr_err_sys_new], axis=0)
+
             y_err_stat = np.concatenate([y_err_stat, y_err_stat_new], axis=0)
             y_err_sys = np.concatenate([y_err_sys, y_err_sys_new], axis=0)
-
             x_sep_data.append(x_data_new)
             y_sep_data.append(y_data_new)
             x_data = np.concatenate([x_data, x_data_new], axis=0)
@@ -134,8 +190,12 @@ def load_data(runcard):
     return {
         "x_tr": x_tr,
         "y_tr": y_tr,
+        "y_tr_err_stat": y_tr_err_stat,
+        "y_tr_err_sys": y_tr_err_sys,
         "x_val": x_val,
         "y_val": y_val,
+        "y_val_err_stat": y_val_err_stat,
+        "y_val_err_sys": y_val_err_sys,
         "x_data": x_data,
         "y_data": y_data,
         "y_err_stat": y_err_stat,
@@ -146,43 +206,65 @@ def load_data(runcard):
 
 
 def compute_covmat(data_dict):
-    covmat = np.zeros((data_dict["y_data"].shape[0], data_dict["y_data"].shape[0]))
-    for i in range(data_dict["y_data"].shape[0]):
-        for j in range(data_dict["y_data"].shape[0]):
-            covmat[i, j] = (
-                data_dict["y_err_sys"][i] * data_dict["y_err_sys"][j]
-                + data_dict["y_data"][i] * data_dict["y_data"][j]
+    covmat_tr = np.zeros((data_dict["y_tr"].shape[0], data_dict["y_tr"].shape[0]))
+    for i in range(data_dict["y_tr"].shape[0]):
+        for j in range(data_dict["y_tr"].shape[0]):
+            covmat_tr[i, j] = (
+                data_dict["y_tr_err_sys"][i] * data_dict["y_tr_err_sys"][j]
+                + data_dict["y_tr"][i] * data_dict["y_tr"][j]
             )
             if i == j:
-                covmat[i, j] += data_dict["y_err_stat"][i] ** 2
-    return covmat
+                covmat_tr[i, j] += data_dict["y_tr_err_stat"][i] ** 2
+
+    covmat_val = np.zeros((data_dict["y_val"].shape[0], data_dict["y_val"].shape[0]))
+    for i in range(data_dict["y_val"].shape[0]):
+        for j in range(data_dict["y_val"].shape[0]):
+            covmat_val[i, j] = (
+                data_dict["y_val_err_sys"][i] * data_dict["y_val_err_sys"][j]
+                + data_dict["y_val"][i] * data_dict["y_val"][j]
+            )
+            if i == j:
+                covmat_val[i, j] += data_dict["y_val_err_stat"][i] ** 2
+
+    return {"tr": covmat_tr, "val": covmat_val}
 
 
 # costum loss function
 def chi2_with_covmat(covmat, ndata):
-    inverted = np.linalg.inv(covmat)
+    inverted_tr = np.linalg.inv(covmat["tr"])
+    inverted_val = np.linalg.inv(covmat["val"])
+    ndata_tr = ndata["tr"]
+    ndata_val = ndata["val"]
     # Convert numpy array into tensorflow object
-    invcovmat = K.constant(inverted)
+    invcovmat_tr = K.constant(inverted_tr)
+    invcovmat_val = K.constant(inverted_val)
 
     def custom_loss(y_true, y_pred):
         # (yt - yp) * covmat * (yt - yp)
         tmp = y_true - y_pred
-        right_dot = tf.tensordot(invcovmat, K.transpose(tmp), axes=1)
-        return tf.tensordot(tmp, right_dot, axes=1) / ndata
+        import pdb
+
+        pdb.set_trace()
+        try:
+            right_dot = tf.tensordot(invcovmat_tr, K.transpose(tmp), axes=1)
+        except:
+            pass
+        else:
+            return tf.tensordot(tmp, right_dot, axes=1) / ndata_tr
+
+        right_dot = tf.tensordot(invcovmat_val, K.transpose(tmp), axes=1)
+        return tf.tensordot(tmp, right_dot, axes=1) / ndata_val
 
     return custom_loss
 
 
 def model_trainer(data_dict, runcard, **hyperparameters):
     # Collect the values for the hyperparameters
-    nb_units_layer_1 = hyperparameters.get("units_1", 64)
-    nb_units_layer_2 = hyperparameters.get("units_2", 32)
     optimizer = hyperparameters.get("optimizer", "adam")
     activation = hyperparameters.get("activation", "relu")
     epochs = hyperparameters.get("epochs", 10)
     nb_layers = hyperparameters.get(
-        "nb_layers",
-        (2, {"units_layer_1_2": nb_units_layer_1, "units_layer_2_2": nb_units_layer_2}),
+        "nb_layers", (2, {"units_layer_1_2": 64, "units_layer_2_2": 32})
     )
 
     layers = list(nb_layers[1].keys())
@@ -200,7 +282,7 @@ def model_trainer(data_dict, runcard, **hyperparameters):
     model.add(Dense(units=1, activation="linear"))
 
     # Compile the Model as usual
-    ndata = data_dict["y_tr"].shape[0]
+    ndata = {"tr": data_dict["y_tr"].shape[0], "val": data_dict["y_val"].shape[0]}
     covmat = compute_covmat(data_dict)
     # model.compile(loss=chi2_with_covmat(covmat, ndata), optimizer=optimizer, metrics=["accuracy"])
     model.compile(loss="mse", optimizer=optimizer, metrics=["accuracy"])
@@ -220,7 +302,6 @@ def model_trainer(data_dict, runcard, **hyperparameters):
         data_dict["y_tr"],
         validation_data=(data_dict["x_val"], data_dict["y_val"]),
         epochs=epochs,
-        batch_size=runcard["batch_size"],
         verbose=0,
         callbacks=[ES],
     )
@@ -233,22 +314,25 @@ def model_trainer(data_dict, runcard, **hyperparameters):
     return model, scores[0]
 
 
-def define_hyperspace(runcard):
+def construct_layers_dict(runcard):
+    layers_list = []
     nb_units_per_layer = runcard["nb_units_per_layer"]
-    learning_rate_choices = runcard["learning_rate_choices"]
+    for n in runcard["layers_choices"]:
+        layer_dict = {}
+        for i in range(1, n + 1):
+            key = f"units_layer_{i}_{n}"
+            layer_dict[f"units_layer_{i}"] = hp.quniform(
+                key,
+                nb_units_per_layer["min"],
+                nb_units_per_layer["max"],
+                nb_units_per_layer["samples"],
+            )
+        layers_list.append((n, layer_dict))
+    return hp.choice("nb_layers", layers_list)
 
-    nb_units_layer_1 = hp.quniform(
-        "units_1",
-        nb_units_per_layer["min"],
-        nb_units_per_layer["max"],
-        nb_units_per_layer["samples"],
-    )
-    nb_units_layer_2 = hp.quniform(
-        "units_2",
-        nb_units_per_layer["min"],
-        nb_units_per_layer["max"],
-        nb_units_per_layer["samples"],
-    )
+
+def define_hyperspace(runcard):
+    learning_rate_choices = runcard["learning_rate_choices"]
     activation = hp.choice("activation", runcard["activation_choices"])
     optimizer = hp.choice("optimizer", runcard["optimizer_choices"])
     epochs = hp.choice("epochs", runcard["epochs_choices"])
@@ -258,66 +342,9 @@ def define_hyperspace(runcard):
         float(learning_rate_choices["min"]),
         float(learning_rate_choices["max"]),
     )
-    nb_layers = hp.choice(
-        "nb_layers",
-        [
-            (
-                1,
-                {
-                    "units_layer_1_1": hp.quniform(
-                        "units_layer_1_1",
-                        nb_units_per_layer["min"],
-                        nb_units_per_layer["max"],
-                        nb_units_per_layer["samples"],
-                    )
-                },
-            ),
-            (
-                2,
-                {
-                    "units_layer_1_2": hp.quniform(
-                        "units_layer_1_2",
-                        nb_units_per_layer["min"],
-                        nb_units_per_layer["max"],
-                        nb_units_per_layer["samples"],
-                    ),
-                    "units_layer_2_2": hp.quniform(
-                        "units_layer_2_2",
-                        nb_units_per_layer["min"],
-                        nb_units_per_layer["max"],
-                        nb_units_per_layer["samples"],
-                    ),
-                },
-            ),
-            (
-                3,
-                {
-                    "units_layer_1_3": hp.quniform(
-                        "units_layer_1_3",
-                        nb_units_per_layer["min"],
-                        nb_units_per_layer["max"],
-                        nb_units_per_layer["samples"],
-                    ),
-                    "units_layer_2_3": hp.quniform(
-                        "units_layer_2_3",
-                        nb_units_per_layer["min"],
-                        nb_units_per_layer["max"],
-                        nb_units_per_layer["samples"],
-                    ),
-                    "units_layer_3_3": hp.quniform(
-                        "units_layer_3_3",
-                        nb_units_per_layer["min"],
-                        nb_units_per_layer["max"],
-                        nb_units_per_layer["samples"],
-                    ),
-                },
-            ),
-        ],
-    )
+    nb_layers = construct_layers_dict(runcard)
 
     return {
-        "units_1": nb_units_layer_1,
-        "units_2": nb_units_layer_2,
         "activation": activation,
         "optimizer": optimizer,
         "epochs": epochs,
