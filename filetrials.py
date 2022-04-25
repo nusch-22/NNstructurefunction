@@ -1,3 +1,5 @@
+#!/usr/bin/env python
+
 import json
 from hyperopt import Trials
 from hyperopt import space_eval
@@ -24,16 +26,10 @@ def space_eval_trial(space, trial):
 
 
 class FileTrials(Trials):
-    """FileTrials.
-    """
+    """FileTrials."""
 
     def __init__(
-        self,
-        replica_path,
-        log=None,
-        parameters=None,
-        exp_key=None,
-        refresh=True
+        self, replica_path, log=None, parameters=None, exp_key=None, refresh=True
     ):
         self._store_trial = False
         self._json_file = "{0}/tries.json".format(replica_path)
@@ -45,8 +41,7 @@ class FileTrials(Trials):
         super(FileTrials, self).__init__(exp_key=exp_key, refresh=refresh)
 
     def refresh(self):
-        """refresh.
-        """
+        """refresh."""
         super(FileTrials, self).refresh()
 
         # write json to disk

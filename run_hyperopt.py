@@ -1,3 +1,5 @@
+#!/usr/bin/env python
+
 import os
 import yaml
 import pickle
@@ -20,8 +22,7 @@ tf.random.set_seed(1234)
 np.random.seed(5678)
 
 current_path = Path().absolute()
-hyperopt_path = current_path / "hyperopt"
-hyperopt_path.mkdir(exist_ok=True)
+hyperopt_path = current_path
 
 
 def argument_parser():

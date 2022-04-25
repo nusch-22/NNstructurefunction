@@ -1,9 +1,10 @@
-activation: tanh
+activation: sigmoid
 epochs: 2000
 initializer: random_normal
-learning_rate: 1.0833696666576866
+learning_rate: 1.0255105606020227
 nb_layers: !!python/tuple
-- 2
-- units_layer_1: 44.0
-  units_layer_2: 40.0
-optimizer: adam
+- 3
+- units_layer_1: 36.0
+  units_layer_2: 32.0
+  units_layer_3: 28.0
+optimizer: RMSprop
