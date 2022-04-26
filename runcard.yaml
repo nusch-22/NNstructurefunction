@@ -1,4 +1,4 @@
-Q2_cut: 80
+Q2_cut: 100
 validation_size: 0.3
 nb_replicas: 10
 
@@ -8,8 +8,11 @@ epochs_choices: [2000, 5000]
 activation_choices: ["sigmoid", "tanh"]
 optimizer_choices: ["adam", "RMSprop", "nadam"]
 initializer_choices: ["random_normal", "random_uniform", "glorot_normal", "glorot_uniform"]
-layers_choices: [2]
-nb_units_per_layer: 
+nb_units_1: 
+  min: 10
+  max: 50
+  samples: 4
+nb_units_2: 
   min: 10
   max: 50
   samples: 4

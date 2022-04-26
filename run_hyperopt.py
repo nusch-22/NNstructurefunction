@@ -111,20 +111,13 @@ def model_trainer(data_df, runcard, **hyperparameters):
     optimizer = hyperparameters.get("optimizer", "adam")
     activation = hyperparameters.get("activation", "relu")
     epochs = hyperparameters.get("epochs", 10)
-    nb_layers = hyperparameters.get(
-        "nb_layers", (2, {"units_layer_1_2": 64, "units_layer_2_2": 32})
-    )
-
-    layers = list(nb_layers[1].keys())
-    nb_units_1 = nb_layers[1][layers[0]]
+    nb_units_1 = hyperparameters.get("units_1", 64)
+    nb_units_2 = hyperparameters.get("units_2", 32)
 
     # Construct the model
     model = Sequential()
-    model.add(Dense(units=nb_units_1, activation=activation, input_shape=[2])),
-
-    if nb_layers[0] > 1:
-        for layer in layers[1:]:
-            model.add(Dense(units=nb_layers[1][layer], activation=activation))
+    model.add(Dense(units=nb_units_1, activation=activation, input_shape=[2]))
+    model.add(Dense(units=nb_units_2, activation=activation))
 
     # output layer
     model.add(Dense(units=1, activation="linear"))
@@ -152,7 +145,7 @@ def model_trainer(data_df, runcard, **hyperparameters):
         x_tr,
         y_tr,
         validation_data=(x_val, y_val),
-        epochs=100,
+        epochs=epochs,
         verbose=0,
         callbacks=[ES],
     )
@@ -163,23 +156,6 @@ def model_trainer(data_df, runcard, **hyperparameters):
     scores = model.evaluate(x_val, y_val, verbose=0)
     # Return the value of the validation loss
     return model, scores[0]
-
-
-def construct_layers_dict(runcard):
-    layers_list = []
-    nb_units_per_layer = runcard["nb_units_per_layer"]
-    for n in runcard["layers_choices"]:
-        layer_dict = {}
-        for i in range(1, n + 1):
-            key = f"units_layer_{i}_{n}"
-            layer_dict[f"units_layer_{i}"] = hp.quniform(
-                key,
-                nb_units_per_layer["min"],
-                nb_units_per_layer["max"],
-                nb_units_per_layer["samples"],
-            )
-        layers_list.append((n, layer_dict))
-    return hp.choice("nb_layers", layers_list)
 
 
 def define_hyperspace(runcard):
@@ -193,7 +169,14 @@ def define_hyperspace(runcard):
         float(learning_rate_choices["min"]),
         float(learning_rate_choices["max"]),
     )
-    nb_layers = construct_layers_dict(runcard)
+    nb_units_1 = runcard["nb_units_1"]
+    nb_units_2 = runcard["nb_units_2"]
+    units_1 = hp.quniform(
+        "units_1", nb_units_1["min"], nb_units_1["max"], nb_units_1["samples"]
+    )
+    units_2 = hp.quniform(
+        "units_2", nb_units_2["min"], nb_units_2["max"], nb_units_2["samples"]
+    )
 
     return {
         "activation": activation,
@@ -201,7 +184,8 @@ def define_hyperspace(runcard):
         "epochs": epochs,
         "initializer": initializer,
         "learning_rate": learning_rate,
-        "nb_layers": nb_layers,
+        "units_1": units_1,
+        "units_2": units_2,
     }
 
 

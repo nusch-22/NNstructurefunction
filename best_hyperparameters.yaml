@@ -1,9 +1,7 @@
 activation: tanh
-epochs: 5000
-initializer: glorot_uniform
-learning_rate: 1.0710555018882748
-nb_layers: 
-- 2
-- units_layer_1: 20.0
-  units_layer_2: 32.0
+epochs: 2000
+initializer: glorot_normal
+learning_rate: 1.02198464652958
 optimizer: RMSprop
+units_1: 48.0
+units_2: 24.0
