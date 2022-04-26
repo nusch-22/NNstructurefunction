@@ -8,7 +8,7 @@ epochs_choices: [2000, 5000]
 activation_choices: ["sigmoid", "tanh"]
 optimizer_choices: ["adam", "RMSprop", "nadam"]
 initializer_choices: ["random_normal", "random_uniform", "glorot_normal", "glorot_uniform"]
-layers_choices: [2, 3, 4]
+layers_choices: [2]
 nb_units_per_layer: 
   min: 10
   max: 50

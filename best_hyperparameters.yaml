@@ -1,9 +1,9 @@
 activation: tanh
 epochs: 5000
-initializer: random_uniform
-learning_rate: 1.0029218938024649
-nb_layers:
+initializer: glorot_uniform
+learning_rate: 1.052805412076518
+nb_layers: !!python/tuple
 - 2
 - units_layer_1: 16.0
-  units_layer_2: 12.0
-optimizer: adam
+  units_layer_2: 16.0
+optimizer: nadam

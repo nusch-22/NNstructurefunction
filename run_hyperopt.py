@@ -212,59 +212,6 @@ def load_data(runcard):
     return data_dict
 
 
-def compute_covmat(data_dict):
-    covmat_tr = np.zeros((data_dict["y_tr"].shape[0], data_dict["y_tr"].shape[0]))
-    for i in range(data_dict["y_tr"].shape[0]):
-        for j in range(data_dict["y_tr"].shape[0]):
-            covmat_tr[i, j] = (
-                data_dict["y_tr_err_sys"][i] * data_dict["y_tr_err_sys"][j]
-                + data_dict["y_tr"][i] * data_dict["y_tr"][j]
-            )
-            if i == j:
-                covmat_tr[i, j] += data_dict["y_tr_err_stat"][i] ** 2
-
-    covmat_val = np.zeros((data_dict["y_val"].shape[0], data_dict["y_val"].shape[0]))
-    for i in range(data_dict["y_val"].shape[0]):
-        for j in range(data_dict["y_val"].shape[0]):
-            covmat_val[i, j] = (
-                data_dict["y_val_err_sys"][i] * data_dict["y_val_err_sys"][j]
-                + data_dict["y_val"][i] * data_dict["y_val"][j]
-            )
-            if i == j:
-                covmat_val[i, j] += data_dict["y_val_err_stat"][i] ** 2
-
-    return {"tr": covmat_tr, "val": covmat_val}
-
-
-# costum loss function
-def chi2_with_covmat(covmat, ndata):
-    inverted_tr = np.linalg.inv(covmat["tr"])
-    inverted_val = np.linalg.inv(covmat["val"])
-    ndata_tr = ndata["tr"]
-    ndata_val = ndata["val"]
-    # Convert numpy array into tensorflow object
-    invcovmat_tr = K.constant(inverted_tr)
-    invcovmat_val = K.constant(inverted_val)
-
-    def custom_loss(y_true, y_pred):
-        # (yt - yp) * covmat * (yt - yp)
-        tmp = y_true - y_pred
-        import pdb
-
-        pdb.set_trace()
-        try:
-            right_dot = tf.tensordot(invcovmat_tr, K.transpose(tmp), axes=1)
-        except:
-            pass
-        else:
-            return tf.tensordot(tmp, right_dot, axes=1) / ndata_tr
-
-        right_dot = tf.tensordot(invcovmat_val, K.transpose(tmp), axes=1)
-        return tf.tensordot(tmp, right_dot, axes=1) / ndata_val
-
-    return custom_loss
-
-
 def model_trainer(data_dict, runcard, **hyperparameters):
     # Collect the values for the hyperparameters
     optimizer = hyperparameters.get("optimizer", "adam")
@@ -289,9 +236,6 @@ def model_trainer(data_dict, runcard, **hyperparameters):
     model.add(Dense(units=1, activation="linear"))
 
     # Compile the Model as usual
-    ndata = {"tr": data_dict["y_tr"].shape[0], "val": data_dict["y_val"].shape[0]}
-    covmat = compute_covmat(data_dict)
-    # model.compile(loss=chi2_with_covmat(covmat, ndata), optimizer=optimizer, metrics=["accuracy"])
     model.compile(loss="mse", optimizer=optimizer, metrics=["accuracy"])
 
     # Callbacks for Early Stopping
