@@ -11,11 +11,11 @@ initializer_choices: ["random_normal", "random_uniform", "glorot_normal", "gloro
 nb_units_1: 
   min: 10
   max: 50
-  samples: 4
+  stepsize: 8
 nb_units_2: 
   min: 10
   max: 50
-  samples: 4
+  stepsize: 8
 learning_rate_choices: 
   min: 1e-6
   max: 1e-1

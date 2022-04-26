@@ -6,14 +6,13 @@ import pickle
 import numpy as np
 import pandas as pd
 import tensorflow as tf
-import tensorflow.keras.backend as K
 import argparse
 
 from pathlib import Path
 from filetrials import FileTrials, space_eval
 from tensorflow.keras import Sequential
 from tensorflow.keras.layers import Dense
-from tensorflow.keras.callbacks import Callback, EarlyStopping
+from tensorflow.keras.callbacks import EarlyStopping
 
 # Import hyperopt modules
 from hyperopt import hp, fmin, tpe
@@ -146,6 +145,7 @@ def model_trainer(data_df, runcard, **hyperparameters):
         y_tr,
         validation_data=(x_val, y_val),
         epochs=epochs,
+        batch_size=1,
         verbose=0,
         callbacks=[ES],
     )
@@ -172,10 +172,10 @@ def define_hyperspace(runcard):
     nb_units_1 = runcard["nb_units_1"]
     nb_units_2 = runcard["nb_units_2"]
     units_1 = hp.quniform(
-        "units_1", nb_units_1["min"], nb_units_1["max"], nb_units_1["samples"]
+        "units_1", nb_units_1["min"], nb_units_1["max"], nb_units_1["stepsize"]
     )
     units_2 = hp.quniform(
-        "units_2", nb_units_2["min"], nb_units_2["max"], nb_units_2["samples"]
+        "units_2", nb_units_2["min"], nb_units_2["max"], nb_units_2["stepsize"]
     )
 
     return {

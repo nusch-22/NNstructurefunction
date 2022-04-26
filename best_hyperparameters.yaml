@@ -1,7 +1,0 @@
-activation: tanh
-epochs: 2000
-initializer: glorot_normal
-learning_rate: 1.02198464652958
-optimizer: RMSprop
-units_1: 48.0
-units_2: 24.0
