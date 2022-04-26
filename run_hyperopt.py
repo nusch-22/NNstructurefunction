@@ -101,6 +101,8 @@ def load_data(runcard):
     df["y_err_sys"] = y_err_sys
     df["mask"] = mask
 
+    df.to_csv(f"{current_path}/DataFrame.csv")
+
     return df
 
 

@@ -2,6 +2,7 @@
 
 import yaml
 import numpy as np
+import pandas as pd
 import matplotlib.pyplot as plt
 import tensorflow as tf
 import argparse
@@ -10,7 +11,6 @@ from run_hyperopt import (
     load_runcard,
     hyperopt_path,
     current_path,
-    load_data,
     model_trainer,
 )
 
@@ -32,6 +32,10 @@ def argument_parser():
     )
     args = parser.parse_args()
     return args
+
+
+def load_data():
+    return pd.read_csv(f"{current_path}/DataFrame.csv", index_col=0)
 
 
 def load_best_parameters():
@@ -117,7 +121,7 @@ def plot_with_reps(models, data_df):
 if __name__ == "__main__":
     args = argument_parser()
     runcard = load_runcard(args.runcard)
-    data_df = load_data(runcard)
+    data_df = load_data()
     best_params = load_best_parameters()
     models = fit_replicas(data_df, runcard, best_params)
     plot_with_reps(models, data_df)
