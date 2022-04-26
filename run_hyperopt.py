@@ -2,9 +2,9 @@
 
 import os
 import yaml
-import json
 import pickle
 import numpy as np
+import pandas as pd
 import tensorflow as tf
 import tensorflow.keras.backend as K
 import argparse
@@ -46,39 +46,18 @@ def load_runcard(filename):
     return input_params
 
 
-def split_trval(x_data, y_data, y_err_stat, y_err_sys, perc=0.3):
-    size_val = round(x_data.shape[0] * perc)
-    idx = np.random.choice(
-        np.arange(1, x_data.shape[0] - 1, 2), size_val, replace=False
-    )
-    x_val = x_data[idx]
-    y_val = y_data[idx]
-    y_val_err_stat = y_err_stat[idx]
-    y_val_err_sys = y_err_sys[idx]
-
-    x_tr = np.delete(x_data, idx, axis=0)
-    y_tr = np.delete(y_data, idx)
-    y_tr_err_stat = np.delete(y_err_stat, idx)
-    y_tr_err_sys = np.delete(y_err_sys, idx)
-
-    return (
-        x_tr,
-        y_tr,
-        y_tr_err_stat,
-        y_tr_err_sys,
-        x_val,
-        y_val,
-        y_val_err_stat,
-        y_val_err_sys,
-    )
+def split_mask(ndata, perc=0.3):
+    mask = np.ones(ndata, dtype=int)
+    if ndata >= 3:
+        size_val = round(ndata * perc)
+        idx = np.random.choice(np.arange(1, ndata - 1, 2), size_val, replace=False)
+        mask[idx] = 0
+    return mask
 
 
 def load_data(runcard):
+    df = pd.DataFrame()
     filenames = os.listdir(f"{data_path}")
-
-    x_sep_data = []
-    y_sep_data = []
-    y_err_sep = []
 
     for i, filename in enumerate(filenames):
         with open(f"{data_path}/" + filename, "r") as file:
@@ -98,121 +77,34 @@ def load_data(runcard):
             F_2_err_sys = F_2_err_sys[Q2_mask]
 
         if i == 0:
-            x_data = np.zeros((len(Q2), 2))
-            x_data[:, 0] = x
-            x_data[:, 1] = Q2
-            y_data = F_2
-            x_sep_data.append(x_data)
-            y_sep_data.append(y_data)
-            y_err_sep.append(F_2_err_stat + F_2_err_sys)
+            ndata = len(Q2)
+            x_0 = np.repeat(x, ndata)
+            x_1 = Q2
+            y = F_2
             y_err_stat = F_2_err_stat
             y_err_sys = F_2_err_sys
+            mask = split_mask(ndata)
 
-            if x_data.shape[0] >= 3:
-                (
-                    x_tr,
-                    y_tr,
-                    y_tr_err_stat,
-                    y_tr_err_sys,
-                    x_val,
-                    y_val,
-                    y_val_err_stat,
-                    y_val_err_sys,
-                ) = split_trval(
-                    x_data,
-                    y_data,
-                    y_err_stat,
-                    y_err_sys,
-                    perc=runcard["validation_size"],
-                )
-                val = True
-            else:
-                x_tr = x_data
-                y_tr = y_data
-                y_tr_err_stat = y_err_stat
-                y_tr_err_sys = y_err_sys
-                val = False
         else:
-            x_data_new = np.zeros((len(Q2), 2))
-            x_data_new[:, 0] = x
-            x_data_new[:, 1] = Q2
-            y_data_new = F_2
-            y_err_stat_new = F_2_err_stat
-            y_err_sys_new = F_2_err_sys
+            ndata = len(Q2)
+            x_0 = np.concatenate([x_0, np.repeat(x, ndata)])
+            x_1 = np.concatenate([x_1, Q2])
+            y = np.concatenate([y, F_2])
+            y_err_stat = np.concatenate([y_err_stat, F_2_err_stat])
+            y_err_sys = np.concatenate([y_err_sys, F_2_err_sys])
+            mask = np.concatenate([mask, split_mask(ndata)])
 
-            if x_data_new.shape[0] >= 3:
-                (
-                    x_tr_new,
-                    y_tr_new,
-                    y_tr_err_stat_new,
-                    y_tr_err_sys_new,
-                    x_val_new,
-                    y_val_new,
-                    y_val_err_stat_new,
-                    y_val_err_sys_new,
-                ) = split_trval(
-                    x_data_new,
-                    y_data_new,
-                    y_err_stat_new,
-                    y_err_sys_new,
-                    perc=runcard["validation_size"],
-                )
-                if val:
-                    x_val = np.concatenate([x_val, x_val_new], axis=0)
-                    y_val = np.concatenate([y_val, y_val_new], axis=0)
-                    y_val_err_stat = np.concatenate(
-                        [y_val_err_stat, y_val_err_stat_new], axis=0
-                    )
-                    y_val_err_sys = np.concatenate(
-                        [y_val_err_sys, y_val_err_sys_new], axis=0
-                    )
-                else:
-                    x_val = x_val_new
-                    y_val = y_val_new
-                    y_val_err_stat = y_val_err_stat_new
-                    y_val_err_sys = y_val_err_sys_new
-                    val = True
+    df["x_0"] = x_0
+    df["x_1"] = x_1
+    df["y"] = y
+    df["y_err_stat"] = y_err_stat
+    df["y_err_sys"] = y_err_sys
+    df["mask"] = mask
 
-            else:
-                x_tr_new = x_data_new
-                y_tr_new = y_data_new
-                y_tr_err_stat_new = y_err_stat_new
-                y_tr_err_sys_new = y_err_sys_new
-
-            x_tr = np.concatenate([x_tr, x_tr_new], axis=0)
-            y_tr = np.concatenate([y_tr, y_tr_new], axis=0)
-            y_tr_err_stat = np.concatenate([y_tr_err_stat, y_tr_err_stat_new], axis=0)
-            y_tr_err_sys = np.concatenate([y_tr_err_sys, y_tr_err_sys_new], axis=0)
-
-            y_err_stat = np.concatenate([y_err_stat, y_err_stat_new], axis=0)
-            y_err_sys = np.concatenate([y_err_sys, y_err_sys_new], axis=0)
-            x_sep_data.append(x_data_new)
-            y_sep_data.append(y_data_new)
-            y_err_sep.append(F_2_err_stat + F_2_err_sys)
-            x_data = np.concatenate([x_data, x_data_new], axis=0)
-            y_data = np.concatenate([y_data, y_data_new], axis=0)
-
-    data_dict = {
-        "x_tr": x_tr,
-        "y_tr": y_tr,
-        "y_tr_err_stat": y_tr_err_stat,
-        "y_tr_err_sys": y_tr_err_sys,
-        "x_val": x_val,
-        "y_val": y_val,
-        "y_val_err_stat": y_val_err_stat,
-        "y_val_err_sys": y_val_err_sys,
-        "x_data": x_data,
-        "y_data": y_data,
-        "y_err_stat": y_err_stat,
-        "y_err_sys": y_err_sys,
-        "x_sep_data": x_sep_data,
-        "y_sep_data": y_sep_data,
-        "y_err_sep": y_err_sep,
-    }
-    return data_dict
+    return df
 
 
-def model_trainer(data_dict, runcard, **hyperparameters):
+def model_trainer(data_df, runcard, **hyperparameters):
     # Collect the values for the hyperparameters
     optimizer = hyperparameters.get("optimizer", "adam")
     activation = hyperparameters.get("activation", "relu")
@@ -226,7 +118,7 @@ def model_trainer(data_dict, runcard, **hyperparameters):
 
     # Construct the model
     model = Sequential()
-    model.add(Dense(units=nb_units_1, activation=activation, input_shape=[2]))
+    model.add(Dense(units=nb_units_1, activation=activation, input_shape=[2])),
 
     if nb_layers[0] > 1:
         for layer in layers[1:]:
@@ -247,12 +139,18 @@ def model_trainer(data_dict, runcard, **hyperparameters):
         restore_best_weights=True,
     )
 
+    # extract data
+    x_tr = data_df[data_df["mask"] == 1][["x_0", "x_1"]].to_numpy()
+    x_val = data_df[data_df["mask"] == 0][["x_0", "x_1"]].to_numpy()
+    y_tr = data_df[data_df["mask"] == 1]["y"].to_numpy()
+    y_val = data_df[data_df["mask"] == 0]["y"].to_numpy()
+
     # Fit the Model as usual
     model.fit(
-        data_dict["x_tr"],
-        data_dict["y_tr"],
-        validation_data=(data_dict["x_val"], data_dict["y_val"]),
-        epochs=epochs,
+        x_tr,
+        y_tr,
+        validation_data=(x_val, y_val),
+        epochs=100,
         verbose=0,
         callbacks=[ES],
     )
@@ -260,7 +158,7 @@ def model_trainer(data_dict, runcard, **hyperparameters):
     # Evaluate the Model on the test. Note that this will be the
     # parameter to hyperoptimize. If one wants, one could use x/y_tr.
     # This might be ideal if one have very small number of datapoints
-    scores = model.evaluate(data_dict["x_val"], data_dict["y_val"], verbose=0)
+    scores = model.evaluate(x_val, y_val, verbose=0)
     # Return the value of the validation loss
     return model, scores[0]
 
@@ -305,12 +203,12 @@ def define_hyperspace(runcard):
     }
 
 
-def perform_hyperopt(data_dict, runcard):
+def perform_hyperopt(data_df, runcard):
     hyperspace = define_hyperspace(runcard)
 
     # Define the hyperoptimization function
     def hyper_function(hyperspace_dict):
-        _, val_loss = model_trainer(data_dict, runcard, **hyperspace_dict)
+        _, val_loss = model_trainer(data_df, runcard, **hyperspace_dict)
         return {"loss": val_loss, "status": "ok"}
 
     trials = FileTrials(hyperopt_path, parameters=hyperspace)
@@ -336,5 +234,5 @@ def perform_hyperopt(data_dict, runcard):
 if __name__ == "__main__":
     args = argument_parser()
     runcard = load_runcard(args.runcard)
-    data_dict = load_data(runcard)
-    best_params = perform_hyperopt(data_dict, runcard)
+    data_df = load_data(runcard)
+    best_params = perform_hyperopt(data_df, runcard)

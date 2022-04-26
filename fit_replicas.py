@@ -40,49 +40,43 @@ def load_best_parameters():
     return best_params
 
 
-def create_replicas(data_dict, runcard):
+def create_replicas(data_df, runcard):
     n_rep = runcard["nb_replicas"]
 
-    # training set
-    y_dist_tr = np.zeros((n_rep, data_dict["y_tr"].shape[0]))
-    for i, mean in enumerate(data_dict["y_tr"]):
-        y_dist_tr[:, i] = np.random.normal(
+    y = data_df["y"].to_numpy()
+    y_err = data_df["y_err_sys"].to_numpy() + data_df["y_err_stat"].to_numpy()
+    y_dist = np.zeros((n_rep, y.shape[0]))
+    for i, mean in enumerate(y):
+        y_dist[:, i] = np.random.normal(
             loc=mean,
-            scale=(data_dict["y_tr_err_stat"][i] + data_dict["y_tr_err_sys"][i]),
+            scale=(y_err[i]),
             size=n_rep,
         )
 
-    # validation set
-    y_dist_val = np.zeros((n_rep, data_dict["y_val"].shape[0]))
-    for i, mean in enumerate(data_dict["y_val"]):
-        y_dist_val[:, i] = np.random.normal(
-            loc=mean,
-            scale=(data_dict["y_val_err_stat"][i] + data_dict["y_val_err_sys"][i]),
-            size=n_rep,
-        )
-
-    return y_dist_tr, y_dist_val
+    return y_dist
 
 
-def fit_replicas(data_dict, runcard, best_params):
-    y_dist_tr, y_dist_val = create_replicas(data_dict, runcard)
+def fit_replicas(data_df, runcard, best_params):
+    y_dist = create_replicas(data_df, runcard)
     models = []
 
-    for y_tr, y_val in zip(y_dist_tr, y_dist_val):
-        new_data_dict = data_dict.copy()
-        new_data_dict["y_tr"] = y_tr
-        new_data_dict["y_val"] = y_val
-        best_model, _ = model_trainer(data_dict, runcard, **best_params)
+    for y in y_dist:
+        new_data_df = data_df.copy()
+        new_data_df["y"] = y
+        best_model, _ = model_trainer(data_df, runcard, **best_params)
         models.append(best_model)
 
     return models
 
 
-def plot_with_reps(models, data_dict):
+def plot_with_reps(models, data_df):
     # loop over x values
-    for x, y, y_err in zip(
-        data_dict["x_sep_data"], data_dict["y_sep_data"], data_dict["y_err_sep"]
-    ):
+    x_set = set(data_df["x_0"])
+    for x_value in x_set:
+        x_df = data_df[data_df["x_0"] == x_value]
+        x = x_df[["x_0", "x_1"]].to_numpy()
+        y = x_df["y"].to_numpy()
+        y_err = x_df["y_err_stat"].to_numpy() + x_df["y_err_sys"].to_numpy()
         x_grid = np.linspace(x[0], x[-1], 100)
 
         # loop over replicas
@@ -90,7 +84,7 @@ def plot_with_reps(models, data_dict):
         for model in models:
             y_pred.append(model.predict(x_grid))
 
-        # comput mean and errorbands
+        # compute mean and errorbands
         p1_high = np.nanpercentile(y_pred, 84, axis=0)
         p1_low = np.nanpercentile(y_pred, 16, axis=0)
         p1_mid = (p1_high + p1_low) / 2.0
@@ -100,7 +94,7 @@ def plot_with_reps(models, data_dict):
         p1_error = p1_error.reshape(-1)
 
         # plot
-        fig, ax = plt.subplots(1, 1)
+        _, ax = plt.subplots(1, 1)
         ax.errorbar(x[:, 1], y, yerr=y_err, label="Data", fmt="ko", capsize=5)
         ax.fill_between(
             x_grid[:, 1],
@@ -123,7 +117,7 @@ def plot_with_reps(models, data_dict):
 if __name__ == "__main__":
     args = argument_parser()
     runcard = load_runcard(args.runcard)
-    data_dict = load_data(runcard)
+    data_df = load_data(runcard)
     best_params = load_best_parameters()
-    models = fit_replicas(data_dict, runcard, best_params)
-    plot_with_reps(models, data_dict)
+    models = fit_replicas(data_df, runcard, best_params)
+    plot_with_reps(models, data_df)

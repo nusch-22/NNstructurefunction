@@ -1,9 +1,9 @@
 activation: tanh
-epochs: 5000
+epochs: 2000
 initializer: glorot_uniform
-learning_rate: 1.052805412076518
-nb_layers: !!python/tuple
+learning_rate: 1.0310296938615977
+nb_layers:
 - 2
-- units_layer_1: 16.0
-  units_layer_2: 16.0
+- units_layer_1: 48.0
+  units_layer_2: 28.0
 optimizer: nadam
