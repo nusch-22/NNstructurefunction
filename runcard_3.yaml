@@ -1,0 +1,19 @@
+name: CHORUS_2
+Q2_cut: 50
+validation_size: 0.3
+
+# Hyperparameteroptimization choices
+nb_trials: 250
+epochs_choices: [2000, 4000]
+activation_choices: ["tanh"]
+optimizer_choices: ["adam", "nadam"]
+initializer_choices: ["glorot_normal"]
+nb_units_1: 
+  min: 15
+  max: 50
+  stepsize: 5
+nb_units_2: 
+  min: 15
+  max: 50
+  stepsize: 5
+learning_rate_choices: [1e-6, 5e-6]
