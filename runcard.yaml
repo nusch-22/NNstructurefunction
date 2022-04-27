@@ -1,19 +1,19 @@
 name: CHORUS
-Q2_cut: 100
+Q2_cut: 50
 validation_size: 0.3
 
 # Hyperparameteroptimization choices
 nb_trials: 2
 epochs_choices: [2000, 5000]
-activation_choices: ["sigmoid", "tanh"]
-optimizer_choices: ["adam", "RMSprop", "nadam"]
+activation_choices: ["sigmoid", "tanh", "relu"]
+optimizer_choices: ["Adagrad", "Adadelta", "Adam", "RMSprop", "Nadam"]
 initializer_choices: ["random_normal", "random_uniform", "glorot_normal", "glorot_uniform"]
 nb_units_1: 
   min: 10
   max: 50
-  stepsize: 8
+  stepsize: 5
 nb_units_2: 
   min: 10
   max: 50
-  stepsize: 8
+  stepsize: 5
 learning_rate_choices: [1e-6, 1e-4, 1e-2, 1e-1]
