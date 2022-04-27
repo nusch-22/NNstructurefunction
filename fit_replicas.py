@@ -8,7 +8,6 @@ import tensorflow as tf
 import argparse
 
 from run_hyperopt import (
-    load_runcard,
     hyperopt_path,
     current_path,
     model_trainer,
@@ -27,25 +26,23 @@ def argument_parser():
     parser = argparse.ArgumentParser(
         description="Perform hyperoptimization on NN to fit structure functions."
     )
-    parser.add_argument(
-        "runcard", help="Runcard containing information on hyperoptimization."
-    )
+    parser.add_argument("name", help="Name of the fit.")
+    parser.add_argument("n_reps", help="Number of replicas.")
     args = parser.parse_args()
     return args
 
 
-def load_data():
-    return pd.read_csv(f"{current_path}/DataFrame.csv", index_col=0)
+def load_data(name):
+    return pd.read_csv(f"{current_path}/DataFrame_{name}.csv", index_col=0)
 
 
-def load_best_parameters():
-    with open(f"{hyperopt_path}/best_hyperparameters.yaml", "r") as file:
+def load_best_parameters(name):
+    with open(f"{hyperopt_path}/best_hyperparameters_{name}.yaml", "r") as file:
         best_params = yaml.safe_load(file)
     return best_params
 
 
-def create_replicas(data_df, runcard):
-    n_rep = runcard["nb_replicas"]
+def create_replicas(data_df, n_rep):
 
     y = data_df["y"].to_numpy()
     y_err = data_df["y_err_sys"].to_numpy() + data_df["y_err_stat"].to_numpy()
@@ -60,20 +57,20 @@ def create_replicas(data_df, runcard):
     return y_dist
 
 
-def fit_replicas(data_df, runcard, best_params):
-    y_dist = create_replicas(data_df, runcard)
+def fit_replicas(data_df, n_reps, best_params):
+    y_dist = create_replicas(data_df, n_reps)
     models = []
 
     for y in y_dist:
         new_data_df = data_df.copy()
         new_data_df["y"] = y
-        best_model, _ = model_trainer(data_df, runcard, **best_params)
+        best_model, _ = model_trainer(data_df, **best_params)
         models.append(best_model)
 
     return models
 
 
-def plot_with_reps(models, data_df):
+def plot_with_reps(models, data_df, name):
     # loop over x values
     x_set = set(data_df["x_0"])
     for x_value in x_set:
@@ -114,14 +111,15 @@ def plot_with_reps(models, data_df):
         ax.set_xlabel("$Q^2$ [GeV$^2$]")
         ax.set_ylabel("$F_2$")
         ax.set_title(f"Prediction of $F_2$ at $x={x[0,0]}$")
-        plt.savefig(f"{fits_path}/FIT_{x[0,0]}.png")
+        plt.savefig(f"{fits_path}/FIT_{x[0,0]}_{name}.png")
         ax.clear()
 
 
 if __name__ == "__main__":
     args = argument_parser()
-    runcard = load_runcard(args.runcard)
-    data_df = load_data()
-    best_params = load_best_parameters()
-    models = fit_replicas(data_df, runcard, best_params)
-    plot_with_reps(models, data_df)
+    n_reps = int(args.n_reps)
+    name = args.name
+    data_df = load_data(name)
+    best_params = load_best_parameters(name)
+    models = fit_replicas(data_df, n_reps, best_params)
+    plot_with_reps(models, data_df, name)

@@ -1,0 +1,7 @@
+activation: tanh
+epochs: 7000
+initializer: random_uniform
+learning_rate: 1.041711913171705
+optimizer: nadam
+units_1: 8.0
+units_2: 8.0

@@ -1,6 +1,6 @@
+name: CHORUS
 Q2_cut: 100
 validation_size: 0.3
-nb_replicas: 10
 
 # Hyperparameteroptimization choices
 nb_trials: 2
@@ -16,6 +16,4 @@ nb_units_2:
   min: 10
   max: 50
   stepsize: 8
-learning_rate_choices: 
-  min: 1e-6
-  max: 1e-1
+learning_rate_choices: [1e-6, 1e-4, 1e-2, 1e-1]

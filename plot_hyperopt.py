@@ -51,18 +51,17 @@ def plot_scans(df, bestdf, trials, bestid, filename):
     # plot features
     for p, k in enumerate(trials[0]["misc"]["vals"].keys()):
 
-        if k in ("learning_rate"):
-            axs[p + 1].scatter(df.get(k), df.get("loss"))
-            if k in ("learning_rate"):
-                axs[p + 1].set_xscale("log")
-                axs[p + 1].set_xlim([1e-5, 1])
-        else:
-            sns.violinplot(
-                df.get(k), df.get("loss"), ax=axs[p + 1], palette="Set2", cut=0.0
-            )
-            sns.stripplot(
-                df.get(k), df.get("loss"), ax=axs[p + 1], color="gray", alpha=0.4
-            )
+        # if k in ("learning_rate"):
+        #    axs[p + 1].scatter(df.get(k), df.get("loss"))
+        #    if k in ("learning_rate"):
+        #        axs[p + 1].set_xscale("log")
+        #        axs[p + 1].set_xlim([1e-5, 1])
+        # else:
+        sns.violinplot(
+            df.get(k), df.get("loss"), ax=axs[p + 1], palette="Set2", cut=0.0
+        )
+        sns.stripplot(df.get(k), df.get("loss"), ax=axs[p + 1], color="gray", alpha=0.4)
+        # else until here
         axs[p + 1].set_xlabel(k)
         axs[p + 1].scatter(bestdf.get(k), bestdf.get("loss"), color="orange")
 

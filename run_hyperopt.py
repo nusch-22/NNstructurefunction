@@ -100,12 +100,12 @@ def load_data(runcard):
     df["y_err_sys"] = y_err_sys
     df["mask"] = mask
 
-    df.to_csv(f"{current_path}/DataFrame.csv")
+    df.to_csv(f"{current_path}/DataFrame_{runcard['name']}.csv")
 
     return df
 
 
-def model_trainer(data_df, runcard, **hyperparameters):
+def model_trainer(data_df, **hyperparameters):
     # Collect the values for the hyperparameters
     optimizer = hyperparameters.get("optimizer", "adam")
     activation = hyperparameters.get("activation", "relu")
@@ -159,16 +159,11 @@ def model_trainer(data_df, runcard, **hyperparameters):
 
 
 def define_hyperspace(runcard):
-    learning_rate_choices = runcard["learning_rate_choices"]
+    learning_rate = hp.choice("learning_rate", runcard["learning_rate_choices"])
     activation = hp.choice("activation", runcard["activation_choices"])
     optimizer = hp.choice("optimizer", runcard["optimizer_choices"])
     epochs = hp.choice("epochs", runcard["epochs_choices"])
     initializer = hp.choice("initializer", runcard["initializer_choices"])
-    learning_rate = hp.loguniform(
-        "learning_rate",
-        float(learning_rate_choices["min"]),
-        float(learning_rate_choices["max"]),
-    )
     nb_units_1 = runcard["nb_units_1"]
     nb_units_2 = runcard["nb_units_2"]
     units_1 = hp.quniform(
@@ -194,10 +189,10 @@ def perform_hyperopt(data_df, runcard):
 
     # Define the hyperoptimization function
     def hyper_function(hyperspace_dict):
-        _, val_loss = model_trainer(data_df, runcard, **hyperspace_dict)
+        _, val_loss = model_trainer(data_df, **hyperspace_dict)
         return {"loss": val_loss, "status": "ok"}
 
-    trials = FileTrials(hyperopt_path, parameters=hyperspace)
+    trials = FileTrials(hyperopt_path, runcard["name"], parameters=hyperspace)
     best = fmin(
         fn=hyper_function,
         space=hyperspace,
@@ -209,10 +204,14 @@ def perform_hyperopt(data_df, runcard):
     # Save the best hyperparameters combination in order to return it later
     best_setup = space_eval(hyperspace, best)
     # Write the output of the best into a file
-    with open(f"{hyperopt_path}/best_hyperparameters.yaml", "w") as file:
+    with open(
+        f"{hyperopt_path}/best_hyperparameters_{runcard['name']}.yaml", "w"
+    ) as file:
         yaml.dump(best_setup, file, default_flow_style=False)
     # Write the all the history of the hyperopt into a file
-    with open(f"{hyperopt_path}/hyperopt_history.pickle", "wb") as histfile:
+    with open(
+        f"{hyperopt_path}/hyperopt_history_{runcard['name']}.pickle", "wb"
+    ) as histfile:
         pickle.dump(trials.trials, histfile)
     return best_setup
 

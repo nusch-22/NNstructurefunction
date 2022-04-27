@@ -29,10 +29,10 @@ class FileTrials(Trials):
     """FileTrials."""
 
     def __init__(
-        self, replica_path, log=None, parameters=None, exp_key=None, refresh=True
+        self, replica_path, name, log=None, parameters=None, exp_key=None, refresh=True
     ):
         self._store_trial = False
-        self._json_file = "{0}/tries.json".format(replica_path)
+        self._json_file = "{0}/tries_{1}.json".format(replica_path, name)
         self._parameters = parameters
         if log:
             self.log_info = log.info
