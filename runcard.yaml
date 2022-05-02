@@ -16,4 +16,3 @@ nb_units_2:
   min: 10
   max: 50
   stepsize: 5
-learning_rate_choices: [1e-6, 1e-4, 1e-2, 1e-1]

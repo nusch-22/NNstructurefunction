@@ -1,7 +1,7 @@
-activation: relu
-epochs: 2000
+activation: sigmoid
+epochs: 5000
 initializer: glorot_normal
-learning_rate: 1e-4
+learning_rate: 1e-6
 optimizer: Adam
-units_1: 45.0
+units_1: 10.0
 units_2: 20.0

@@ -112,14 +112,24 @@ def model_trainer(data_df, **hyperparameters):
     epochs = hyperparameters.get("epochs", 10)
     nb_units_1 = hyperparameters.get("units_1", 64)
     nb_units_2 = hyperparameters.get("units_2", 32)
+    initializer = hyperparameters.get("initializer", "random_normal")
 
     # Construct the model
     model = Sequential()
-    model.add(Dense(units=nb_units_1, activation=activation, input_shape=[2]))
-    model.add(Dense(units=nb_units_2, activation=activation))
+    model.add(
+        Dense(
+            units=nb_units_1,
+            activation=activation,
+            kernel_initializer=initializer,
+            input_shape=[2],
+        )
+    )
+    model.add(
+        Dense(units=nb_units_2, activation=activation, kernel_initializer=initializer)
+    )
 
     # output layer
-    model.add(Dense(units=1, activation="linear"))
+    model.add(Dense(units=1, activation="linear", kernel_initializer=initializer))
 
     # Compile the Model as usual
     model.compile(loss="mse", optimizer=optimizer, metrics=["accuracy"])
@@ -159,7 +169,6 @@ def model_trainer(data_df, **hyperparameters):
 
 
 def define_hyperspace(runcard):
-    learning_rate = hp.choice("learning_rate", runcard["learning_rate_choices"])
     activation = hp.choice("activation", runcard["activation_choices"])
     optimizer = hp.choice("optimizer", runcard["optimizer_choices"])
     epochs = hp.choice("epochs", runcard["epochs_choices"])
@@ -178,7 +187,6 @@ def define_hyperspace(runcard):
         "optimizer": optimizer,
         "epochs": epochs,
         "initializer": initializer,
-        "learning_rate": learning_rate,
         "units_1": units_1,
         "units_2": units_2,
     }
