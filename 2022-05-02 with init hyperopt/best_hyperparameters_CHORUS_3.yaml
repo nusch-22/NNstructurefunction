@@ -1,0 +1,6 @@
+activation: tanh
+epochs: 5000
+initializer: glorot_normal
+optimizer: adam
+units_1: 25.0
+units_2: 25.0

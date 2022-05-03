@@ -1,0 +1,6 @@
+activation: tanh
+epochs: 2000
+initializer: random_normal
+optimizer: nadam
+units_1: 25.0
+units_2: 10.0
