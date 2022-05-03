@@ -1,5 +1,5 @@
 name: CHORUS
-Q2_cut: 30
+Q2_cut: None
 validation_size: 0.3
 
 # Hyperparameteroptimization choices

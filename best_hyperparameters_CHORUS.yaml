@@ -1,7 +1,6 @@
-activation: sigmoid
+activation: tanh
 epochs: 5000
 initializer: glorot_normal
-learning_rate: 1e-6
-optimizer: Adam
-units_1: 10.0
-units_2: 20.0
+optimizer: adam
+units_1: 25.0
+units_2: 25.0

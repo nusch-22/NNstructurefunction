@@ -3,6 +3,8 @@
 import numpy as np
 import matplotlib.pyplot as plt
 import argparse
+import yaml
+import pandas as pd
 
 from run_hyperopt import (
     current_path,
@@ -14,6 +16,7 @@ np.random.seed(5678)
 
 fits_path = current_path / "fits"
 fits_path.mkdir(exist_ok=True)
+theory_path = current_path / "theory"
 
 
 def argument_parser():
@@ -25,14 +28,44 @@ def argument_parser():
     return args
 
 
-def plot_with_reps(n_reps, name, data_df):
+def load_theory():
+    with open(
+        f"{theory_path}/DataGrid_NNPDF40_nnlo_as_01180_antineutrino.yaml", "r"
+    ) as file:
+        antineutrino = yaml.safe_load(file)
+    with open(
+        f"{theory_path}/DataGrid_NNPDF40_nnlo_as_01180_neutrino.yaml", "r"
+    ) as file:
+        neutrino = yaml.safe_load(file)
+    theory_df = pd.DataFrame()
+    theory_df["x"] = np.array(list(neutrino["F2_total"]["x"].values()))
+    theory_df["Q2"] = np.array(list(neutrino["F2_total"]["Q2"].values()))
+    theory_df["F2"] = (
+        np.array(list(neutrino["F2_total"]["result"].values()))
+        + np.array(list(antineutrino["F2_total"]["result"].values()))
+    ) / 2
+    theory_df["err"] = (
+        np.array(list(neutrino["F2_total"]["error"].values()))
+        + np.array(list(antineutrino["F2_total"]["error"].values()))
+    ) / 2
+    return theory_df
+
+
+def plot_with_reps(n_reps, name, data_df, theory_df):
     # loop over x values
     x_set = set(data_df["x_0"])
     for x_idx, x_value in enumerate(x_set):
+        # experimental data
         x_df = data_df[data_df["x_0"] == x_value]
         x = x_df[["x_0", "x_1"]].to_numpy()
         y = x_df["y"].to_numpy()
         y_err = x_df["y_err_stat"].to_numpy() + x_df["y_err_sys"].to_numpy()
+
+        # theoretical data
+        x_theory_df = theory_df[theory_df["x"] == x_value]
+        x_theory = x_theory_df["Q2"]
+        y_theory = x_theory_df["F2"]
+        err_theory = x_theory_df["err"]
 
         # loop over replicas
         y_pred = []
@@ -63,10 +96,11 @@ def plot_with_reps(n_reps, name, data_df):
             alpha=0.25,
         )
         ax.plot(x_grid[:, 1], p1_mid, color="red", linestyle="dashed")
-        ax.legend()
         ax.set_xlabel("$Q^2$ [GeV$^2$]")
         ax.set_ylabel("$F_2$")
         ax.set_title(f"Prediction of $F_2$ at $x={x[0,0]}$")
+        ax.errorbar(x_theory, y_theory, yerr=err_theory, label="Theory", fmt="go")
+        ax.legend()
         plt.savefig(f"{fits_path}/FIT_{x[0,0]}_{name}.png")
         ax.clear()
 
@@ -76,4 +110,5 @@ if __name__ == "__main__":
     n_reps = int(args.n_reps)
     name = args.name
     data_df = load_data(name)
-    plot_with_reps(n_reps, name, data_df)
+    theory_df = load_theory()
+    plot_with_reps(n_reps, name, data_df, theory_df)
