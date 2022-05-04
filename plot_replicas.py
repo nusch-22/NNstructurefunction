@@ -6,10 +6,9 @@ import argparse
 import yaml
 import pandas as pd
 
-from run_hyperopt import (
-    current_path,
-)
+from run_hyperopt import current_path
 from create_replicas import reps_path, load_data
+from fit_replica import load_pred_grids
 
 # Fix the seeds for reproducible results
 np.random.seed(5678)
@@ -29,25 +28,15 @@ def argument_parser():
 
 
 def load_theory():
-    with open(
-        f"{theory_path}/DataGrid_NNPDF40_nnlo_as_01180_antineutrino.yaml", "r"
-    ) as file:
-        antineutrino = yaml.safe_load(file)
-    with open(
-        f"{theory_path}/DataGrid_NNPDF40_nnlo_as_01180_neutrino.yaml", "r"
-    ) as file:
-        neutrino = yaml.safe_load(file)
+    with open(f"{theory_path}/DataGrid_NNPDF40_nnlo_as_01180.yaml", "r") as file:
+        theory = yaml.safe_load(file)
+
     theory_df = pd.DataFrame()
-    theory_df["x"] = np.array(list(neutrino["F2_total"]["x"].values()))
-    theory_df["Q2"] = np.array(list(neutrino["F2_total"]["Q2"].values()))
-    theory_df["F2"] = (
-        np.array(list(neutrino["F2_total"]["result"].values()))
-        + np.array(list(antineutrino["F2_total"]["result"].values()))
-    ) / 2
-    theory_df["err"] = (
-        np.array(list(neutrino["F2_total"]["error"].values()))
-        + np.array(list(antineutrino["F2_total"]["error"].values()))
-    ) / 2
+    theory_df["x"] = np.round(np.array(list(theory["F2_total"]["x"].values())), 3)
+    theory_df["Q2"] = np.array(list(theory["F2_total"]["Q2"].values()))
+    theory_df["F2"] = np.array(list(theory["F2_total"]["result"].values()))
+    theory_df["err"] = np.array(list(theory["F2_total"]["pdf_err"].values()))
+
     return theory_df
 
 
@@ -96,12 +85,69 @@ def plot_with_reps(n_reps, name, data_df, theory_df):
             alpha=0.25,
         )
         ax.plot(x_grid[:, 1], p1_mid, color="red", linestyle="dashed")
+        ax.errorbar(
+            x_theory, y_theory, yerr=err_theory, label="Theory", fmt="go", capsize=5
+        )
         ax.set_xlabel("$Q^2$ [GeV$^2$]")
         ax.set_ylabel("$F_2$")
         ax.set_title(f"Prediction of $F_2$ at $x={x[0,0]}$")
-        ax.errorbar(x_theory, y_theory, yerr=err_theory, label="Theory", fmt="go")
         ax.legend()
         plt.savefig(f"{fits_path}/FIT_{x[0,0]}_{name}.png")
+        ax.clear()
+
+
+def plot_extrapol(n_reps, pred_df, name):
+    # loop over x values
+    x_set = set(pred_df["x"])
+    for x_idx, x_value in enumerate(x_set):
+        x_df = pred_df[pred_df["x"] == x_value]
+        x = x_df[["x", "Q2"]].to_numpy()
+        y = x_df["F2"].to_numpy()
+        y_err = x_df["err"].to_numpy()
+
+        # loop over replicas
+        y_pred = []
+        for rep_idx in range(n_reps):
+            data_pred = np.load(f"{reps_path}/EXTRAHIGH_{rep_idx+1}_{name}.npy")
+            y_pred.append(data_pred[x_idx, :, 2])
+        x_grid = data_pred[x_idx, :, :2]
+
+        # compute mean and errorbands
+        p1_high = np.nanpercentile(y_pred, 84, axis=0)
+        p1_low = np.nanpercentile(y_pred, 16, axis=0)
+        p1_mid = (p1_high + p1_low) / 2.0
+        p1_error = (p1_high - p1_low) / 2.0
+
+        p1_mid = p1_mid.reshape(-1)
+        p1_error = p1_error.reshape(-1)
+
+        # plot
+        _, ax = plt.subplots(1, 1)
+        ax.plot(x[:, 1], y, color="green", linestyle="dashed")
+        ax.fill_between(
+            x[:, 1],
+            y1=y - y_err,
+            y2=y + y_err,
+            color="green",
+            edgecolor="green",
+            label="Theory",
+            alpha=0.25,
+        )
+        ax.fill_between(
+            x_grid[:, 1],
+            y1=p1_mid - p1_error,
+            y2=p1_mid + p1_error,
+            color="red",
+            edgecolor="red",
+            label="Prediction",
+            alpha=0.25,
+        )
+        ax.plot(x_grid[:, 1], p1_mid, color="red", linestyle="dashed")
+        ax.set_xlabel("$Q^2$ [GeV$^2$]")
+        ax.set_ylabel("$F_2$")
+        ax.set_title(f"Prediction of $F_2$ at $x={x[0,0]}$")
+        ax.legend()
+        plt.savefig(f"{fits_path}/EXTRAHIGH_{x[0,0]}.png")
         ax.clear()
 
 
@@ -112,3 +158,5 @@ if __name__ == "__main__":
     data_df = load_data(name)
     theory_df = load_theory()
     plot_with_reps(n_reps, name, data_df, theory_df)
+    pred_df = load_pred_grids()
+    plot_extrapol(n_reps, pred_df, name)
