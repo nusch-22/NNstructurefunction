@@ -1,4 +1,5 @@
 #!/usr/bin/env python
+"""Run a hyperparameter optimisation according to chosen parameterspace."""
 
 import os
 import yaml
@@ -40,12 +41,21 @@ def argument_parser():
 
 # load runcard with parameters
 def load_runcard(filename):
+    """Load runcard from file."""
     with open(f"{current_path}/" + filename, "r") as file:
         input_params = yaml.safe_load(file)
     return input_params
 
 
 def split_mask(ndata, perc=0.3):
+    """Split the dataset.
+
+    Arguments:
+        ndata: number of datapoints
+        perc: fraction for validaton set
+    Returns:
+        mask: random mask for training (1) and validation set (0)
+    """
     mask = np.ones(ndata, dtype=int)
     if ndata >= 3:
         size_val = round(ndata * perc)
@@ -55,6 +65,16 @@ def split_mask(ndata, perc=0.3):
 
 
 def load_data(runcard):
+    """Load data from data_path and write a pandas dataframe into a file.
+
+    Dataframe keys:
+        x_0: björken x
+        x_1: Q^2
+        y: structure function F_2
+        y_err_stat: statistical error of F_2
+        y_err_sys: systematic error of F_2
+        mask: mask for training and validation split
+    """
     df = pd.DataFrame()
     filenames = os.listdir(f"{data_path}")
 
@@ -106,6 +126,7 @@ def load_data(runcard):
 
 
 def model_trainer(data_df, **hyperparameters):
+    """Construct the model and train it according to the chosen hyperparameters"""
     # Collect the values for the hyperparameters
     optimizer = hyperparameters.get("optimizer", "adam")
     activation = hyperparameters.get("activation", "relu")
@@ -169,6 +190,7 @@ def model_trainer(data_df, **hyperparameters):
 
 
 def define_hyperspace(runcard):
+    """Define hyperparameter space of the hyperopt according to the runcard."""
     activation = hp.choice("activation", runcard["activation_choices"])
     optimizer = hp.choice("optimizer", runcard["optimizer_choices"])
     epochs = hp.choice("epochs", runcard["epochs_choices"])
@@ -193,6 +215,7 @@ def define_hyperspace(runcard):
 
 
 def perform_hyperopt(data_df, runcard):
+    """Perfom the hyperparameter optimisation and save the hyperopt history and the best parameterset to files."""
     hyperspace = define_hyperspace(runcard)
 
     # Define the hyperoptimization function
@@ -225,6 +248,7 @@ def perform_hyperopt(data_df, runcard):
 
 
 if __name__ == "__main__":
+    """Execute hyperparameter optimisation."""
     args = argument_parser()
     runcard = load_runcard(args.runcard)
     data_df = load_data(runcard)

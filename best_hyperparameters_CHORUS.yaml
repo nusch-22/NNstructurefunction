@@ -1,6 +1,6 @@
-activation: tanh
-epochs: 2000
-initializer: glorot_normal
-optimizer: RMSprop
-units_1: 15.0
-units_2: 25.0
+activation: relu
+epochs: 5000
+initializer: random_normal
+optimizer: Adam
+units_1: 25.0
+units_2: 10.0
