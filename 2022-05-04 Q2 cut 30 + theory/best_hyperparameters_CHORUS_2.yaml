@@ -1,0 +1,6 @@
+activation: tanh
+epochs: 5000
+initializer: glorot_uniform
+optimizer: nadam
+units_1: 15.0
+units_2: 10.0
