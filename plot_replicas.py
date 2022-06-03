@@ -28,6 +28,7 @@ def argument_parser():
 
 
 def load_theory():
+    """Load the theoretical predictions into a dataframe."""
     with open(f"{theory_path}/DataGrid_NNPDF40_nnlo_as_01180.yaml", "r") as file:
         theory = yaml.safe_load(file)
 
@@ -41,6 +42,7 @@ def load_theory():
 
 
 def plot_with_reps(n_reps, name, data_df, theory_df):
+    """Plot the data, the fits with uncertainty from n_reps replicas and the theoretical predictions."""
     # loop over x values
     x_set = set(data_df["x_0"])
     for x_idx, x_value in enumerate(x_set):
@@ -97,6 +99,7 @@ def plot_with_reps(n_reps, name, data_df, theory_df):
 
 
 def plot_extrapol(n_reps, pred_df, name):
+    """Plot the interpolated model predictions with uncertainty from n_reps replicas and the theoretical predictions."""
     # loop over x values
     x_set = set(pred_df["x"])
     for x_idx, x_value in enumerate(x_set):
